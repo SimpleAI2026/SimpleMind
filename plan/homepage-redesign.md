@@ -1,6 +1,6 @@
 # 主页改版计划：科技感 Home + 模板卡片平铺
 
-> **范围：已确认并在本地实现中**  
+> **范围：已完成并合入 `main`**  
 > 日期：2026-10-27  
 > 基线：`main` @ 当前本地（含 UI / 性能 / 覆盖率后续改动）  
 > 技术栈约束：继续使用 **Vue 3 + Vite + Ant Design Vue + simple-mind-map + simple-mind-map-plugin-themes + 现有 i18n**，不引入新框架。
@@ -11,9 +11,10 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 本文档 | **已确认** |
-| 应用代码 | **实现中（本地 `feat/homepage-redesign`）** |
+| 本文档 | **已完成** |
+| 应用代码 | **已完成**（已合入 `main` 并推送 `SimpleAI2026/SimpleMind`） |
 | `AGENTS.md` | **已新建**（见仓库根目录） |
+| README 样例图 | **已更新**（主页 / 脑图 / 卡片视图） |
 
 ---
 
@@ -217,6 +218,7 @@ cards = [
 
 ## 9. 实现记录
 
-1. 本地分支 `feat/homepage-redesign`（不强制云端 PR，按用户要求本地执行）
-2. 根目录 `AGENTS.md` 已写入
-3. 本文档状态：已确认 / 实现中
+1. 本地分支 `feat/homepage-redesign` 实现（不强制云端 PR，按用户要求本地执行）
+2. 根目录 `AGENTS.md` 已写入；README / README_EN 样例图已更新
+3. 已合入本机 `main` 并推送至 `SimpleAI2026/SimpleMind`
+4. 本文档状态：**已完成**
