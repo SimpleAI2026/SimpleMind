@@ -89,3 +89,38 @@ describe('settings modal tabs', () => {
     )
   })
 })
+
+describe('card modal chrome polish', () => {
+  it('card modal content uses chrome border, radius, shadow, and blur', () => {
+    const body = declarations('.card-modal-wrap .ant-modal .ant-modal-content')
+    expect(body).toMatch(/background:\s*var\(--card-page-bg\)/)
+    expect(body).toMatch(/border:\s*1px solid var\(--chrome-border\)/)
+    expect(body).toMatch(/border-radius:\s*12px/)
+    expect(body).toMatch(/box-shadow:\s*var\(--chrome-shadow\)/)
+    expect(body).toMatch(/backdrop-filter:\s*blur\(8px\)/)
+  })
+
+  it('card modal header divider uses chrome divider token', () => {
+    const body = declarations(
+      '.card-modal-wrap .ant-modal .ant-modal-content .ant-modal-header',
+    )
+    expect(body).toMatch(/border-bottom:\s*1px solid var\(--chrome-divider\)/)
+  })
+
+  it('card modal close button matches settings hover treatment', () => {
+    const base = declarations('.card-modal-wrap .ant-modal-close')
+    expect(base).toMatch(/color:\s*var\(--chrome-text\)/)
+    expect(base).toMatch(/top:\s*12px/)
+
+    const hover = declarations('.card-modal-wrap .ant-modal-close:hover')
+    expect(hover).toMatch(/background:\s*var\(--chrome-hover\)/)
+    expect(hover).toMatch(/color:\s*var\(--card-page-text\)/)
+  })
+
+  it('card modal title uses chrome-aligned typography', () => {
+    const body = declarations('.card-modal-wrap .ant-modal-title')
+    expect(body).toMatch(/font-weight:\s*600/)
+    expect(body).toMatch(/font-size:\s*15px/)
+    expect(body).toMatch(/color:\s*var\(--card-page-text\)/)
+  })
+})

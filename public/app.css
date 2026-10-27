@@ -401,6 +401,7 @@ body {
     width: 100%;
 }
 
+/* Soft chrome shell around card page — same tokens as Settings / toolbar. */
 .card-modal-wrap .ant-modal {
     top: 48px;
     padding-bottom: 24px;
@@ -408,26 +409,39 @@ body {
 
 .card-modal-wrap .ant-modal .ant-modal-content {
     background: var(--card-page-bg);
+    border: 1px solid var(--chrome-border);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: var(--chrome-shadow);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 /* Beat Ant Design CSS-in-JS headerBg (colorBgElevated / #fff). */
 .card-modal-wrap .ant-modal .ant-modal-content .ant-modal-header {
     background: var(--card-page-bg);
-    border-bottom: 1px solid var(--chrome-border);
+    border-bottom: 1px solid var(--chrome-divider);
     margin-bottom: 0;
     padding: var(--space-3) var(--space-4);
 }
 
 .card-modal-wrap .ant-modal-title {
     color: var(--card-page-text);
+    font-size: 15px;
     font-weight: 600;
+    line-height: 24px;
+    letter-spacing: -0.01em;
 }
 
 .card-modal-wrap .ant-modal-close {
+    top: 12px;
+    inset-inline-end: 12px;
     color: var(--chrome-text);
+}
+
+.card-modal-wrap .ant-modal-close:hover {
+    color: var(--card-page-text);
+    background: var(--chrome-hover);
 }
 
 .card-modal-wrap .ant-modal .ant-modal-content .ant-modal-body {
@@ -440,6 +454,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--space-2);
     min-height: min(320px, 40vh);
     text-align: center;
     padding: var(--space-5);
@@ -448,7 +463,9 @@ body {
 }
 
 .card-loading-text {
-    margin-top: var(--space-2);
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
     color: #6b7280;
 }
 

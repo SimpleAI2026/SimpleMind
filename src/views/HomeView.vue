@@ -181,24 +181,25 @@ const openTemplate = (card) => {
   appearance: none;
   border: 1px solid var(--home-card-border);
   background: var(--home-card-bg);
-  backdrop-filter: blur(10px);
-  border-radius: 14px;
-  padding: 18px 16px;
-  min-height: 148px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 140px;
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 8px;
   color: inherit;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .home-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--home-accent) 55%, transparent);
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--home-accent) 22%, transparent);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--home-accent) 45%, transparent);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--home-accent) 18%, rgba(0, 0, 0, 0.08));
 }
 
 .home-card-create {
@@ -223,6 +224,7 @@ const openTemplate = (card) => {
 .home-card-badge {
   align-self: flex-start;
   font-size: 11px;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--home-accent) 16%, transparent);
@@ -233,12 +235,13 @@ const openTemplate = (card) => {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
 .home-card-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--home-muted);
-  line-height: 1.45;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -257,8 +260,8 @@ const openTemplate = (card) => {
     gap: 12px;
   }
   .home-card {
-    min-height: 132px;
-    padding: 14px 12px;
+    min-height: 128px;
+    padding: 12px;
   }
 }
 </style>

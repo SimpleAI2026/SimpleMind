@@ -48,4 +48,17 @@ describe('template JSON quality net', () => {
     expect(html).not.toMatch(/\.card\s*\{[^}]*border-left/)
     expect(html).not.toContain('--card-accent')
   })
+
+  it('card view tokens mirror chrome UI language', () => {
+    const html = readFileSync(join(templatesDir, 'card.html'), 'utf8')
+    expect(html).toContain('--color-primary: #00c0b8')
+    expect(html).toContain('--card-border: rgba(0, 0, 0, 0.06)')
+    expect(html).toContain('--card-shadow: 0 8px 24px rgba(0, 0, 0, 0.08)')
+    expect(html).toContain('--card-radius: 12px')
+    expect(html).toContain('--connector-color: #f0f0f0')
+    expect(html).toContain('--card-bg: rgba(255, 255, 255, 0.92)')
+    expect(html).toMatch(/\.card\s*\{[^}]*backdrop-filter:\s*blur\(8px\)/)
+    expect(html).toMatch(/border-left:\s*1px solid var\(--connector-color\)/)
+    expect(html).not.toMatch(/border-left:\s*2px solid/)
+  })
 })

@@ -71,8 +71,8 @@ export function useAppSettings() {
       '--home-line': line,
       '--home-fg': dark ? '#f5f5f5' : '#1f2937',
       '--home-muted': dark ? 'rgba(255,255,255,0.65)' : 'rgba(31,41,55,0.65)',
-      '--home-card-bg': dark ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.82)',
-      '--home-card-border': dark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)',
+      '--home-card-bg': dark ? 'rgba(15,23,42,0.72)' : 'rgba(255,255,255,0.92)',
+      '--home-card-border': dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
       '--home-grid': dark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)',
       '--color-primary': accent,
     }

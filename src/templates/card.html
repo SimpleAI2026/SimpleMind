@@ -6,21 +6,28 @@
     <title>思维导图卡片视图</title>
     <style>
         :root {
-            --indent-width: 28px;
+            /* Mirror public/app.css chrome + card-page tokens for one visual language. */
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 24px;
+            --indent-width: 24px;
+            --color-primary: #00c0b8;
             --page-bg: #f4f6f8;
-            --page-text: #1f2937;
-            --title-color: #111827;
-            --card-bg: #ffffff;
+            --page-text: #374151;
+            --title-color: #1f2937;
+            --card-bg: rgba(255, 255, 255, 0.92);
             --card-bg-nested: #fbfcfd;
             --card-bg-deep: #f7f8fa;
-            --card-text: #1f2937;
+            --card-text: #374151;
             --card-text-muted: #6b7280;
-            --card-border: rgba(15, 23, 42, 0.08);
-            --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 20px rgba(15, 23, 42, 0.05);
-            --card-shadow-nested: 0 1px 2px rgba(15, 23, 42, 0.04);
-            --card-shadow-hover: 0 4px 14px rgba(15, 23, 42, 0.08);
+            --card-border: rgba(0, 0, 0, 0.06);
+            --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --card-shadow-nested: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --card-shadow-hover: 0 10px 28px rgba(0, 0, 0, 0.1);
             --card-radius: 12px;
-            --connector-color: #e5e7eb;
+            --connector-color: #f0f0f0;
+            --card-hover-border: color-mix(in srgb, var(--color-primary) 35%, var(--card-border));
 
             --accent-mint: #f3faf8;
             --accent-sky: #f3f7fb;
@@ -38,17 +45,19 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--page-bg);
             margin: 0;
-            padding: 20px 16px 32px;
+            padding: var(--space-4) var(--space-4) var(--space-5);
             color: var(--page-text);
+            -webkit-font-smoothing: antialiased;
         }
 
         h2 {
             text-align: center;
-            margin: 4px 0 20px;
+            margin: var(--space-2) 0 var(--space-4);
             color: var(--title-color);
-            font-size: 1.35rem;
-            font-weight: 650;
+            font-size: 1.25rem;
+            font-weight: 600;
             letter-spacing: -0.02em;
+            line-height: 1.35;
         }
 
         #app {
@@ -60,34 +69,37 @@
             position: relative;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: var(--space-2);
+            margin-bottom: var(--space-2);
         }
 
         .children-wrapper {
             padding-left: var(--indent-width);
-            border-left: 2px solid var(--connector-color);
-            margin-left: 12px;
+            border-left: 1px solid var(--connector-color);
+            margin-left: var(--space-3);
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: var(--space-2);
         }
 
         .card {
             background-color: var(--card-tint);
             border-radius: var(--card-radius);
-            padding: 14px 16px;
+            padding: var(--space-3) var(--space-4);
             box-shadow: var(--card-shadow);
-            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
             position: relative;
             color: var(--card-text);
             min-width: 200px;
             border: 1px solid var(--card-border);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
 
         .card:hover {
             transform: translateY(-1px);
             box-shadow: var(--card-shadow-hover);
+            border-color: var(--card-hover-border);
         }
 
         .card.tint-mint { --card-tint: var(--accent-mint); }
@@ -109,35 +121,35 @@
         }
 
         .card-text {
-            font-size: 1.05rem;
-            font-weight: 650;
+            font-size: 15px;
+            font-weight: 600;
             line-height: 1.45;
             margin-bottom: 0;
             color: var(--title-color);
         }
 
         .card-note {
-            font-size: 0.9rem;
+            font-size: 13px;
             font-weight: 400;
-            line-height: 1.6;
-            margin-top: 6px;
+            line-height: 1.55;
+            margin-top: var(--space-2);
             color: var(--card-text-muted);
             white-space: pre-wrap;
         }
 
         .children-wrapper .card-text {
-            font-size: 0.98rem;
+            font-size: 14px;
             font-weight: 600;
         }
 
         .children-wrapper .children-wrapper .card-text {
-            font-size: 0.92rem;
+            font-size: 13px;
             font-weight: 600;
         }
 
         @media (max-width: 600px) {
             body {
-                padding: 12px 10px 24px;
+                padding: var(--space-3) var(--space-3) var(--space-4);
             }
             .children-wrapper {
                 padding-left: 14px;
