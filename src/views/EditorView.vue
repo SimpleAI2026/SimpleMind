@@ -96,7 +96,7 @@
         :footer="null"
         @cancel="saveSettings"
     >
-        <a-tabs v-model:activeKey="activeKey" centered type="line">
+        <a-tabs class="settings-tabs" v-model:activeKey="activeKey" centered type="line">
             <a-tab-pane :key="'settings'" :tab="t('settings')">
                 <div class="settings-section">
                     <label class="field-row">

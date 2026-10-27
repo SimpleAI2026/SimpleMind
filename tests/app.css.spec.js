@@ -45,4 +45,47 @@ describe('modal header backgrounds', () => {
       /display:\s*none/,
     )
   })
+
+  it('settings modal content uses chrome background instead of harsh white', () => {
+    const body = declarations(
+      '.settings-modal-wrap .ant-modal .ant-modal-content',
+    )
+    expect(body).toMatch(/background:\s*var\(--chrome-bg\)/)
+    expect(body).toMatch(/border-radius:\s*12px/)
+    expect(body).not.toMatch(/background:\s*#fff/i)
+  })
+
+  it('settings modal body scrolls within a capped height', () => {
+    const body = declarations('.settings-modal-wrap .ant-modal-body')
+    expect(body).toMatch(/max-height:\s*min\(72vh,\s*640px\)/)
+    expect(body).toMatch(/overflow-y:\s*auto/)
+  })
+})
+
+describe('settings modal tabs', () => {
+  it('tab nav clears the close button and spaces below the ink bar', () => {
+    const body = declarations('.settings-modal-wrap .ant-tabs > .ant-tabs-nav')
+    expect(body).toMatch(/padding-inline-end:\s*36px/)
+    expect(body).toMatch(/margin:\s*0 0 var\(--space-3\)/)
+  })
+
+  it('active tab uses primary color with stronger weight', () => {
+    const body = declarations(
+      '.settings-modal-wrap .ant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn',
+    )
+    expect(body).toMatch(/color:\s*var\(--color-primary\)/)
+    expect(body).toMatch(/font-weight:\s*600/)
+  })
+
+  it('ink bar matches the primary accent', () => {
+    const body = declarations('.settings-modal-wrap .ant-tabs .ant-tabs-ink-bar')
+    expect(body).toMatch(/background:\s*var\(--color-primary\)/)
+    expect(body).toMatch(/height:\s*2px/)
+  })
+
+  it('tab panes share a consistent minimum content height', () => {
+    expect(declarations('.settings-modal-wrap .ant-tabs-tabpane')).toMatch(
+      /min-height:\s*120px/,
+    )
+  })
 })

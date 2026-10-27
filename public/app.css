@@ -232,8 +232,15 @@ body {
     padding-bottom: 24px;
 }
 
-.settings-modal-wrap .ant-modal-content {
+/* Soft chrome shell — match toolbar/card light polish, no harsh white strip. */
+.settings-modal-wrap .ant-modal .ant-modal-content {
     padding: 0;
+    background: var(--chrome-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--chrome-shadow);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .settings-modal-wrap .ant-modal-header {
@@ -241,25 +248,73 @@ body {
 }
 
 .settings-modal-wrap .ant-modal-body {
-    padding: var(--space-3) var(--space-4) var(--space-3);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    max-height: min(72vh, 640px);
+    overflow-y: auto;
+    background: transparent;
 }
 
 .settings-modal-wrap .ant-modal-close {
-    top: 10px;
+    top: 12px;
     inset-inline-end: 12px;
+    color: var(--chrome-text);
 }
 
-.settings-modal-wrap .ant-tabs-nav {
-    margin: 0 0 var(--space-2);
+.settings-modal-wrap .ant-modal-close:hover {
+    color: var(--card-page-text);
+    background: var(--chrome-hover);
 }
 
-.settings-modal-wrap .ant-tabs-content,
-.settings-modal-wrap .ant-tabs-tabpane {
-    padding-top: 0;
+/* Tab bar: clearer active ink, typography contrast, close-button clearance. */
+.settings-modal-wrap .ant-tabs > .ant-tabs-nav {
+    margin: 0 0 var(--space-3);
+    padding-inline-end: 36px; /* room for absolute close */
 }
 
 .settings-modal-wrap .ant-tabs-top > .ant-tabs-nav::before {
     border-bottom-color: var(--chrome-divider);
+}
+
+.settings-modal-wrap .ant-tabs .ant-tabs-tab {
+    padding: var(--space-2) var(--space-3);
+    font-size: 14px;
+    line-height: 22px;
+    transition: color 0.15s ease;
+}
+
+.settings-modal-wrap .ant-tabs .ant-tabs-tab + .ant-tabs-tab {
+    margin: 0 0 0 var(--space-3);
+}
+
+.settings-modal-wrap .ant-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+    color: #6b7280;
+    font-weight: 500;
+    text-shadow: none;
+}
+
+.settings-modal-wrap .ant-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+    color: var(--chrome-text);
+}
+
+.settings-modal-wrap .ant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: var(--color-primary);
+    font-weight: 600;
+    text-shadow: none;
+}
+
+.settings-modal-wrap .ant-tabs .ant-tabs-ink-bar {
+    background: var(--color-primary);
+    height: 2px;
+    border-radius: 1px;
+}
+
+.settings-modal-wrap .ant-tabs-content {
+    padding-top: 0;
+}
+
+.settings-modal-wrap .ant-tabs-tabpane {
+    padding-top: 0;
+    min-height: 120px;
 }
 
 .layout-btn {
