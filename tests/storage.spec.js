@@ -9,6 +9,9 @@ import {
   saveMindMapData,
   scheduleMindMapSave,
   flushMindMapSave,
+  setPendingEditorAction,
+  consumePendingEditorAction,
+  PENDING_EDITOR_KEY,
   resetMindMapSaveState,
 } from '../src/storage.js'
 
@@ -90,7 +93,7 @@ describe('saveSettings', () => {
 
   it('rethrows when setItem throws', () => {
     const boom = new Error('quota')
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    vi.spyOn(window.sessionStorage.__proto__, 'setItem').mockImplementation(() => {
       throw boom
     })
     expect(() => saveSettings({ api: 'x' })).toThrow(boom)
@@ -146,7 +149,7 @@ describe('loadMindMapData / saveMindMapData', () => {
   it('rethrows QuotaExceeded from saveMindMapData', () => {
     const quota = new Error('full')
     quota.name = 'QuotaExceededError'
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    vi.spyOn(window.sessionStorage.__proto__, 'setItem').mockImplementation(() => {
       throw quota
     })
     expect(() => saveMindMapData({ data: { text: 'x' } })).toThrow(quota)
@@ -182,5 +185,30 @@ describe('scheduleMindMapSave / flushMindMapSave', () => {
     expect(JSON.parse(sessionStorage.getItem(MINDMAP_KEY)).data.text).toBe('pending')
     flushMindMapSave()
     vi.useRealTimers()
+  })
+})
+
+
+describe('pending editor action', () => {
+  it('sets, consumes, and clears pending actions', () => {
+    setPendingEditorAction({ type: 'create' })
+    expect(JSON.parse(sessionStorage.getItem(PENDING_EDITOR_KEY))).toEqual({ type: 'create' })
+    expect(consumePendingEditorAction()).toEqual({ type: 'create' })
+    expect(sessionStorage.getItem(PENDING_EDITOR_KEY)).toBeNull()
+    expect(consumePendingEditorAction()).toBeNull()
+
+    setPendingEditorAction(null)
+    expect(sessionStorage.getItem(PENDING_EDITOR_KEY)).toBeNull()
+
+    sessionStorage.setItem(PENDING_EDITOR_KEY, '{bad')
+    expect(consumePendingEditorAction()).toBeNull()
+  })
+
+  it('warns when pending write fails', () => {
+    vi.spyOn(window.sessionStorage.__proto__, 'setItem').mockImplementation(() => {
+      throw new Error('nope')
+    })
+    setPendingEditorAction({ type: 'create' })
+    expect(console.warn).toHaveBeenCalled()
   })
 })

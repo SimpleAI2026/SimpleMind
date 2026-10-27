@@ -20,7 +20,8 @@
     "pdfjs-dist": "^3",
     "simple-mind-map": "^0.14.0-fix.1",
     "simple-mind-map-plugin-themes": "^1.0.1",
-    "vue": "^3.5.22"
+    "vue": "^3.5.22",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",

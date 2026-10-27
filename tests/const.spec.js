@@ -9,6 +9,7 @@ import {
   iconList,
   DEFAULT_MODEL,
   loadExampleTemplate,
+  getTemplateCards,
 } from '../src/const.js'
 import zhCN from '../src/locales/zh-CN.json'
 import enUS from '../src/locales/en-US.json'
@@ -70,5 +71,24 @@ describe('const.js', () => {
         expect(loaded.data?.text || loaded.root?.data?.text).toBeTruthy()
       }
     }
+  })
+})
+
+
+describe('getTemplateCards', () => {
+  it('flattens all thinkingModels examples without grouping', () => {
+    const cards = getTemplateCards()
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards[0]).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        name: expect.any(String),
+        content: expect.any(String),
+        layout: expect.any(String),
+        methodValue: expect.any(String),
+      }),
+    )
+    const ids = new Set(cards.map((c) => c.id))
+    expect(ids.size).toBe(cards.length)
   })
 })

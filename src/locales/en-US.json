@@ -79,5 +79,8 @@
   "selectSupportedFile": "Please select .smm/.json/.xmind/.xlsx/.md",
   "xlsxNotIntegrated": "XLSX parsing not integrated yet, please install xlsx library",
   "cardView": "Card View",
-  "cardViewFailed": "Card View Generation Failed"
+  "cardViewFailed": "Card View Generation Failed",
+  "createMindMap": "Create",
+  "backHome": "Back to Home",
+  "homeTemplates": "Templates"
 }

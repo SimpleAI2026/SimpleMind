@@ -1,5 +1,6 @@
 export const SETTINGS_KEY = 'mindlessSettings'
 export const MINDMAP_KEY = 'mindMapData'
+export const PENDING_EDITOR_KEY = 'pendingEditorAction'
 export const MINDMAP_SAVE_DEBOUNCE_MS = 400
 
 const toNumberOr = (val, fallback) => {
@@ -97,4 +98,30 @@ export function scheduleMindMapSave(mapData, delay = MINDMAP_SAVE_DEBOUNCE_MS) {
         saveTimer = null
         flushMindMapSave()
     }, delay)
+}
+
+
+export function setPendingEditorAction(action) {
+    try {
+        if (!action) {
+            sessionStorage.removeItem(PENDING_EDITOR_KEY)
+            return
+        }
+        sessionStorage.setItem(PENDING_EDITOR_KEY, JSON.stringify(action))
+    } catch (e) {
+        console.warn('写入 pendingEditorAction 失败：', e)
+    }
+}
+
+export function consumePendingEditorAction() {
+    try {
+        const raw = sessionStorage.getItem(PENDING_EDITOR_KEY)
+        sessionStorage.removeItem(PENDING_EDITOR_KEY)
+        if (!raw) return null
+        return JSON.parse(raw)
+    } catch (e) {
+        console.warn('读取 pendingEditorAction 失败：', e)
+        try { sessionStorage.removeItem(PENDING_EDITOR_KEY) } catch {}
+        return null
+    }
 }

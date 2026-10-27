@@ -369,3 +369,23 @@ export async function loadExampleTemplate(content) {
     const mod = await loader()
     return mod?.default ?? mod
 }
+
+
+/** Flatten thinkingModels[*].example into Home template cards (no grouping). */
+export function getTemplateCards() {
+    const cards = []
+    for (const model of thinkingModels) {
+        for (const ex of model.example || []) {
+            cards.push({
+                id: `${model.value}:${ex.content}`,
+                name: ex.name,
+                description: ex.description || model.description || '',
+                layout: ex.layout || 'mindMap',
+                content: ex.content,
+                methodValue: model.value,
+                methodLabel: model.label,
+            })
+        }
+    }
+    return cards
+}

@@ -62,6 +62,8 @@ const storageMocks = vi.hoisted(() => ({
   saveMindMapData: vi.fn(),
   scheduleMindMapSave: vi.fn(),
   flushMindMapSave: vi.fn(),
+  consumePendingEditorAction: vi.fn(() => null),
+  setPendingEditorAction: vi.fn(),
 }))
 
 const libaiMocks = vi.hoisted(() => ({
@@ -137,8 +139,11 @@ vi.mock('../src/storage.js', () => ({
   saveMindMapData: storageMocks.saveMindMapData,
   scheduleMindMapSave: storageMocks.scheduleMindMapSave,
   flushMindMapSave: storageMocks.flushMindMapSave,
+  consumePendingEditorAction: storageMocks.consumePendingEditorAction,
+  setPendingEditorAction: storageMocks.setPendingEditorAction,
   SETTINGS_KEY: 'mindlessSettings',
   MINDMAP_KEY: 'mindMapData',
+  PENDING_EDITOR_KEY: 'pendingEditorAction',
 }))
 
 vi.mock('../src/libai.js', () => ({
@@ -152,13 +157,33 @@ vi.mock('../src/parser.js', () => ({
   parseFileAsPrompt: parserMocks.parseFileAsPrompt,
 }))
 
-import App from '../src/App.vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
+import EditorView from '../src/views/EditorView.vue'
+import HomeView from '../src/views/HomeView.vue'
 
-const mountApp = async () => {
-  const wrapper = mount(App, { attachTo: document.body })
+const createTestRouter = async (path = '/map') => {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', name: 'home', component: HomeView },
+      { path: '/map', name: 'editor', component: EditorView },
+    ],
+  })
+  await router.push(path)
+  await router.isReady()
+  return router
+}
+
+const mountApp = async (path = '/map') => {
+  const router = await createTestRouter(path)
+  const wrapper = mount(EditorView, {
+    attachTo: document.body,
+    global: { plugins: [router] },
+  })
   await flushPromises()
   return {
     wrapper,
+    router,
     state: wrapper.vm.$.setupState,
     mm: mindMapState.instances.at(-1),
   }
@@ -175,6 +200,9 @@ beforeEach(() => {
   storageMocks.saveMindMapData.mockReset()
   storageMocks.scheduleMindMapSave.mockReset()
   storageMocks.flushMindMapSave.mockReset()
+  storageMocks.consumePendingEditorAction.mockReset()
+  storageMocks.consumePendingEditorAction.mockReturnValue(null)
+  storageMocks.setPendingEditorAction.mockReset()
   utilsMocks.showError.mockReset()
   utilsMocks.showLoading.mockReset()
   utilsMocks.hideLoading.mockReset()
@@ -297,6 +325,7 @@ describe('toolbar', () => {
       .map((button) => button.getAttribute('title'))
       .filter(Boolean)
     expect(titles).toEqual([
+      '返回主页',
       '返回',
       '前进',
       '新建',
@@ -304,13 +333,12 @@ describe('toolbar', () => {
       '仅删除当前节点',
       '导出导入',
       '详细/简单模式切换',
-      '设置思考模版',
       '卡片视图',
       '设置',
       'AI生成',
     ])
     const groups = [...document.querySelectorAll('.toolbar-inner > .toolbar-group')]
-    expect(groups[0].classList.contains('zoom-control')).toBe(true)
+    expect(groups[1].classList.contains('zoom-control')).toBe(true)
     wrapper.unmount()
   })
 
@@ -343,8 +371,8 @@ describe('toolbar', () => {
     wrapper.unmount()
   })
 
-  it('back/forward/newMap/add/remove/export/mode/drawer/settings', async () => {
-    const { wrapper, state, mm } = await mountApp()
+  it('back/forward/newMap/add/remove/export/mode/settings/home', async () => {
+    const { wrapper, state, mm, router } = await mountApp()
     state.back()
     state.forward()
     expect(mm.execCommand).toHaveBeenCalledWith('BACK')
@@ -382,14 +410,18 @@ describe('toolbar', () => {
     state.forward()
     expect(mm.execCommand.mock.calls.filter((c) => c[0] === 'BACK')).toHaveLength(1)
 
-    state.showDrawer()
-    expect(state.drawerOpen).toBe(true)
-    state.onClose()
-    expect(state.drawerOpen).toBe(false)
-    expect(storageMocks.saveSettingsToStorage).toHaveBeenCalled()
-
+    state.settingsOpen = false
     state.toggleSettings()
     expect(state.settingsOpen).toBe(true)
+
+    expect(wrapper.find('[title="设置思考模版"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'ADrawer' }).exists()).toBe(false)
+
+    state.goHome()
+    await flushPromises()
+    expect(storageMocks.flushMindMapSave).toHaveBeenCalled()
+    expect(storageMocks.saveSettingsToStorage).toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('home')
     wrapper.unmount()
   })
 
@@ -828,7 +860,7 @@ describe('aiGenerate', () => {
 })
 
 describe('template rendering', () => {
-  it('shows generating label, disabled paste, drawer examples, and card iframe', async () => {
+  it('shows generating label, disabled paste, no thinking drawer, and card iframe', async () => {
     const { wrapper, state } = await mountApp()
     state.isGenerating = true
     await nextTick()
@@ -839,18 +871,8 @@ describe('template rendering', () => {
     await nextTick()
     expect(wrapper.find('.menu-item.disabled').exists()).toBe(true)
 
-    state.drawerOpen = true
-    await flushPromises()
-    await nextTick()
-    const openBtns = [...document.body.querySelectorAll('button')].filter((b) =>
-      (b.textContent || '').includes('打开:'),
-    )
-    expect(openBtns.length).toBeGreaterThan(0)
-    openBtns[0].click()
-    await nextTick()
-
-    state.thinkingModels[0] && (state.settings.thinkingModel = state.thinkingModels[0].value)
-    await wrapper.findComponent({ name: 'ARadio' }).trigger('click')
+    expect(wrapper.find('[title="设置思考模版"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('打开:')
 
     state.cardModalOpen = true
     state.isCardLoading = true
@@ -860,6 +882,63 @@ describe('template rendering', () => {
     state.cardHtmlUrl = 'blob:x'
     await nextTick()
     expect(document.body.querySelector('iframe[title="card-view"]')).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('loads pending create/template actions on mount', async () => {
+    storageMocks.consumePendingEditorAction.mockReturnValueOnce({ type: 'create' })
+    const created = await mountApp()
+    expect(storageMocks.saveMindMapData).toHaveBeenCalled()
+    created.wrapper.unmount()
+
+    storageMocks.consumePendingEditorAction.mockReturnValueOnce({
+      type: 'template',
+      content: 'default1.json',
+      layout: 'logicalStructure',
+      thinkingModel: 'default',
+    })
+    const templated = await mountApp()
+    expect(templated.state.settings.layout).toBe('logicalStructure')
+    expect(templated.mm.setThemeConfig).toHaveBeenCalled()
+    templated.wrapper.unmount()
+  })
+
+  it('loads template from route query when no pending action', async () => {
+    const queried = await mountApp('/map?template=default1.json&layout=timeline')
+    expect(queried.state.settings.layout).toBe('timeline')
+    queried.wrapper.unmount()
+  })
+
+  it('warns when pending template loading throws', async () => {
+    storageMocks.consumePendingEditorAction.mockReturnValueOnce({
+      type: 'template',
+      content: 'default1.json',
+      layout: 'mindMap',
+    })
+    const constMod = await import('../src/const.js')
+    const spy = vi.spyOn(constMod, 'loadExampleTemplate').mockRejectedValueOnce(new Error('boom'))
+    const failed = await mountApp()
+    expect(console.warn).toHaveBeenCalled()
+    spy.mockRestore()
+    failed.wrapper.unmount()
+  })
+})
+
+describe('export buttons', () => {
+  it('clicks every export format button', async () => {
+    const { wrapper, state, mm } = await mountApp()
+    state.settingsOpen = true
+    state.activeKey = 'export'
+    await flushPromises()
+    await nextTick()
+    const formats = ['smm', 'json', 'svg', 'png', 'pdf', 'md', 'xmind', 'txt', 'cardhtml']
+    const buttons = [...document.body.querySelectorAll('.chart-list button')]
+    expect(buttons.length).toBeGreaterThanOrEqual(formats.length)
+    for (const btn of buttons) {
+      btn.click()
+    }
+    await nextTick()
+    expect(utilsMocks.exportMindMap.mock.calls.length).toBeGreaterThanOrEqual(formats.length)
     wrapper.unmount()
   })
 })
@@ -974,11 +1053,6 @@ describe('coverage edge branches', () => {
     layoutBtns[0].click()
     await nextTick()
 
-    const drawer = wrapper.findComponent({ name: 'ADrawer' })
-    if (drawer.exists()) {
-      await drawer.vm.$emit('update:open', true)
-      await drawer.vm.$emit('update:open', false)
-    }
     const modals = wrapper.findAllComponents({ name: 'AModal' })
     for (const modal of modals) {
       await modal.vm.$emit('update:open', true)

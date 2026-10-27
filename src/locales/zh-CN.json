@@ -79,5 +79,8 @@
   "selectSupportedFile": "请选择 .smm/.json/.xmind/.xlsx/.md",
   "xlsxNotIntegrated": "暂未集成 .xlsx 解析，请安装并接入 xlsx 库",
   "cardView": "卡片视图",
-  "cardViewFailed": "卡片视图生成失败"
+  "cardViewFailed": "卡片视图生成失败",
+  "createMindMap": "创建",
+  "backHome": "返回主页",
+  "homeTemplates": "模板"
 }
