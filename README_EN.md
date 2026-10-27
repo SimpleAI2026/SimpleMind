@@ -2,32 +2,48 @@
 
 English | [中文](./README.md)
 
-A free, in-browser mind mapping tool. Select a node, pick a thinking template, and generate child nodes through an **OpenAI-compatible** Chat Completions API.
+A free, in-browser mind mapping tool. The app opens on a **Home** page of template cards; in the editor, select a node and generate child nodes through an **OpenAI-compatible** Chat Completions API.
 
 - Live demo: https://simple-mind-five.vercel.app
 - Repository: https://github.com/linkxzhou/SimpleMind
 
-Stack: Vue 3, Vite 7, Ant Design Vue 4, [simple-mind-map](https://github.com/wanglin2/mind-map).
+Stack: Vue 3, Vite 7, Ant Design Vue 4, vue-router, [simple-mind-map](https://github.com/wanglin2/mind-map).
 
-## Screenshots
+## Screenshots (samples)
 
-### Desktop
+Sample screenshots of the product after the homepage redesign.
 
-![Screenshot 1](./ScreenShot1.png)
+### Home
+
+![Home sample](./ScreenShot1.png)
+
+Brand **SimpleMind** on the left; language and theme selectors on the right. The main area is a “Create” card plus a grid of thinking-template example cards.
+
+### Mind map
+
+![Mind map sample](./ScreenShot2.png)
+
+Editor (`/map`) shows the mind map. The toolbar includes back to Home, zoom, undo/redo, add/remove nodes, import/export, detailed/simple mode, card view, settings, and AI Generate (no “Set Thinking Template” toolbar entry).
 
 ### Card view
 
-![Screenshot 2](./ScreenShot2.png)
+![Card view sample](./ScreenShot3.png)
 
-### Mobile
-
-![Screenshot 3](./ScreenShot3.png)
+Renders the map as layered, document-style cards; can also be exported as a standalone `card.html`.
 
 ## Features
 
+### Home and navigation
+
+- **Default route `/`**: tech-style Home page (not the canvas).
+- **Header**: brand `SimpleMind` on the left; language and theme dropdowns on the right (same theme list as Settings via `getThemeList()`).
+- **Template card grid**: first card is always “Create (+)”; remaining cards are flattened thinking-template examples (note-taking, course learning, first principles, Feynman technique, Bayesian thinking, critical thinking, code generation, and more).
+- **Enter editor**: “Create” → `/map` with a new map; a template card → `/map` with that example loaded. To switch templates, go back to Home.
+- **Back to Home**: explicit control at the start of the editor toolbar.
+
 ### AI generation
 
-- **Thinking templates**: Default (general summary), note-taking, course learning, first principles, Feynman technique, Bayesian thinking, critical thinking, and code generation. Each template has rules and built-in example maps.
+- **Thinking templates**: Default (general summary), note-taking, course learning, first principles, Feynman technique, Bayesian thinking, critical thinking, and code generation. Templates are applied when opening from a Home card; rules can still be reviewed in Settings.
 - **Generate children**: Select a node and click **AI Generate**. Child nodes are inserted from the node text, current template, and knowledge base (default two-level structure: first level + `children`). “Min nodes per generation” is 1–20 (default 5).
 - **Knowledge base**: Enter system context in Settings, or upload `.md` / `.txt` / `.csv` / `.pdf` (parsed to text, truncated at about 20,000 characters).
 - **AI expand**: Send the current knowledge base to the model to expand it before generation.
@@ -35,7 +51,7 @@ Stack: Vue 3, Vite 7, Ant Design Vue 4, [simple-mind-map](https://github.com/wan
 
 ### Editing and views
 
-- **Toolbar**: zoom (desktop), undo/redo, new map, add/remove nodes, import/export, detailed/simple mode, thinking templates, card view, settings, AI generate.
+- **Toolbar**: back to Home, zoom (desktop), undo/redo, new map, add/remove nodes, import/export, detailed/simple mode, card view, settings, AI generate (**no** “Set Thinking Template” toolbar button).
 - **Layouts**: mind map, logical structure, organization chart, catalog organization, timeline, fishbone.
 - **Detailed / simple mode**: detailed mode appends the node note to the text; simple mode keeps the title only.
 - **Card view**: renders the map as layered cards; can also be exported as a standalone `card.html`.
@@ -102,15 +118,17 @@ You can skip env files and fill in API Base, secret, and model in Settings befor
 
 ## Usage
 
-1. Configure the API via env vars or the settings panel.
-2. Select the root node or any node and set its text to the topic you want to expand.
-3. Optionally open **Set Thinking Template** to pick a method and load an example, and add material in **Knowledge Base**.
-4. Click **AI Generate**. Child nodes are inserted under the selected node.
+1. Open the app on Home and optionally set language / theme in the header.
+2. Click **Create** for a blank map, or open a template card to load an example into the editor.
+3. Configure the API via env vars or the settings panel.
+4. Select the root node or any node and set its text to the topic you want to expand; optionally add material in **Knowledge Base**.
+5. Click **AI Generate**. Child nodes are inserted under the selected node. To switch thinking templates, use **Back to Home** and pick another card.
 
 ## Implementation notes
 
 - Model JSON is often invalid; the app already repairs it with [`jsonrepair`](https://www.npmjs.com/package/jsonrepair) before parsing.
 - The official `simple-mind-map` `TouchEvent` plugin binds touch handlers on `window` and blocks Ant Design Vue controls on mobile. This repo uses `src/plugins/TouchEvent.js`, which ignores touches whose target is outside the mind-map container.
+- Routes: `/` → Home, `/map` → Editor.
 
 ## References
 
