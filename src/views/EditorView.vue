@@ -108,30 +108,50 @@
                         />
                     </label>
 
-                    <label class="field-row">
-                        <span class="field-label">{{ t('api') }}：</span>
-                        <a-input class="field-control" name="api" v-model:value="settings.api" :placeholder="t('apiPlaceholder')" />
-                    </label>
-
-                    <label class="field-row">
-                        <span class="field-label">{{ t('secret') }}：</span>
-                        <a-input class="field-control" name="secret" v-model:value="settings.secret" :placeholder="t('secretPlaceholder')" />
-                    </label>
-
-                    <div class="field-row">
-                        <span class="field-label">{{ t('model') }}：</span>
-                        <a-select
-                            class="field-control"
-                            v-model:value="settings.model"
-                            :options="modelOptions"
-                            :placeholder="t('modelPlaceholder')"
-                            show-search
-                        />
+                    <div class="field-row field-row-top">
+                        <span class="field-label">{{ t('builtinAI') }}：</span>
+                        <div class="field-control builtin-ai-panel">
+                            <div class="builtin-ai-status">
+                                <span
+                                    class="builtin-ai-dot"
+                                    :class="'status-' + aiStatus"
+                                ></span>
+                                <span>{{ builtinAiStatusLabel }}</span>
+                            </div>
+                            <a-progress
+                                v-if="aiStatus === 'downloading'"
+                                :percent="Math.round((aiProgress || 0) * 100)"
+                                size="small"
+                                :show-info="true"
+                            />
+                            <p class="builtin-ai-hint">{{ t('builtinAIHint') }}</p>
+                            <div class="builtin-ai-actions">
+                                <a-button size="small" @click="refreshAiAvailability" :loading="aiChecking">
+                                    {{ t('builtinAIRecheck') }}
+                                </a-button>
+                                <a-button
+                                    v-if="aiStatus === 'downloadable' || aiStatus === 'downloading'"
+                                    size="small"
+                                    type="primary"
+                                    @click="ensureAiReady"
+                                    :loading="aiStatus === 'downloading'"
+                                >
+                                    {{ t('builtinAIDownload') }}
+                                </a-button>
+                                <a-button
+                                    v-if="isExtension"
+                                    size="small"
+                                    @click="openFullPage"
+                                >
+                                    {{ t('openFullPage') }}
+                                </a-button>
+                            </div>
+                        </div>
                     </div>
 
                     <label class="field-row">
                         <span class="field-label">{{ t('childCountRange') }}：</span>
-                        <a-input-number class="field-control-narrow" name="depth" v-model:value="settings.depth" :min="1" :max="20" :step="1" />
+                        <a-input-number class="field-control-narrow" name="depth" v-model:value="settings.depth" :min="1" :max="4" :step="1" />
                     </label>
                 </div>
 
@@ -344,6 +364,7 @@ import {
     TabPane as ATabPane,
     Upload as AUpload,
     ConfigProvider as AConfigProvider,
+    Progress as AProgress,
 } from 'ant-design-vue'
 import {
     MinusOutlined,
@@ -361,13 +382,13 @@ import {
     AppstoreOutlined,
     LoadingOutlined,
 } from '@ant-design/icons-vue'
-import { ref, shallowRef, onMounted, onUnmounted, h, watch } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, h, watch , computed} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MindMap from "simple-mind-map"
-import { showError, exportMindMap, importFileToMindMap, ENV_API, ENV_SECRET, ENV_MODEL, switchTextNoteMode, getThemeList, buildCardHtml, debugLog } from '../utils.js'
-import { buildPrompt as libBuildPrompt, extractIdeas as libExtractIdeas, requestCompletions, expandPrompt } from '../libai.js'
+import { showError, exportMindMap, importFileToMindMap, switchTextNoteMode, getThemeList, buildCardHtml, debugLog } from '../utils.js'
+import { buildPrompt as libBuildPrompt, extractIdeas as libExtractIdeas, expandPrompt, NANO_MAX_COUNT } from '../libai.js'
 import { loadSettings as loadSettingsFromStorage, saveSettings as saveSettingsToStorage, loadMindMapData, saveMindMapData, scheduleMindMapSave, flushMindMapSave, consumePendingEditorAction } from '../storage.js'
-import { layouts as layoutOptions, languageOptions, messages, fontFamilyOptions, iconList, DEFAULT_MODEL, modelOptions, loadExampleTemplate } from '../const.js'
+import { layouts as layoutOptions, languageOptions, messages, fontFamilyOptions, iconList, loadExampleTemplate } from '../const.js'
 import { parseFileAsPrompt } from '../parser.js'
 
 const THEME_CONFIG_DEBOUNCE_MS = 120
@@ -416,12 +437,9 @@ const clipboardData = ref(null)      // 剪贴板数据
 
 // 设置状态
 const settings = ref({
-    api: ENV_API || '',
-    secret: ENV_SECRET || '',
-    model: ENV_MODEL || DEFAULT_MODEL,
     temperature: 0.6,
     systemPrompt: '',
-    depth: 5,
+    depth: 3,
     thinkingModel: 'default',
     language: 'zh-CN',
     layout: 'mindMap',
@@ -432,7 +450,82 @@ const settings = ref({
     fontFamily: '微软雅黑, Microsoft YaHei',
     themeRootFillColor: '#00c0b8',
     theme: 'mint',
+    promptLayers: 1,
 })
+
+// Built-in AI availability (Chrome Prompt API)
+const aiStatus = ref('unknown')
+const aiProgress = ref(0)
+const aiChecking = ref(false)
+const isExtension = ref(
+    typeof chrome !== 'undefined' && !!chrome?.runtime?.id
+)
+
+const builtinAiStatusLabel = computed(() => {
+    switch (aiStatus.value) {
+        case 'available':
+            return t('builtinAIAvailable')
+        case 'downloadable':
+            return t('builtinAIDownloadable')
+        case 'downloading':
+            return t('builtinAIDownloading')
+        case 'unavailable':
+            return t('builtinAIUnavailable')
+        default:
+            return t('builtinAIChecking')
+    }
+})
+
+const refreshAiAvailability = async () => {
+    aiChecking.value = true
+    try {
+        const { checkBuiltinAvailability } = await import('../ai/generateText.js')
+        const result = await checkBuiltinAvailability()
+        aiStatus.value = result.status
+        if (result.status === 'available') aiProgress.value = 1
+        return result
+    } catch (err) {
+        aiStatus.value = 'unavailable'
+        return { status: 'unavailable', reason: err?.message || String(err) }
+    } finally {
+        aiChecking.value = false
+    }
+}
+
+const ensureAiReady = async () => {
+    await refreshAiAvailability()
+    if (aiStatus.value === 'available') return true
+    if (aiStatus.value === 'downloadable' || aiStatus.value === 'downloading') {
+        aiStatus.value = 'downloading'
+        aiProgress.value = 0
+        try {
+            const { builtinPromptAI } = await import('../ai/generateText.js')
+            await builtinPromptAI.ensureSession({
+                onDownloadProgress: (loaded) => {
+                    aiProgress.value = loaded
+                    aiStatus.value = 'downloading'
+                },
+            })
+            aiStatus.value = 'available'
+            aiProgress.value = 1
+            return true
+        } catch (err) {
+            aiStatus.value = 'unavailable'
+            console.error(err)
+            return false
+        }
+    }
+    return false
+}
+
+const openFullPage = () => {
+    try {
+        const url = chrome?.runtime?.getURL?.('index.html') || window.location.href
+        window.open(url, '_blank')
+    } catch {
+        window.open(window.location.href, '_blank')
+    }
+}
 
 // -----------------------------------------------------------------------------
 // 2. 工具函数 (Helper Functions)
@@ -516,11 +609,10 @@ const validateTargetNode = () => {
 const loadSettings = () => {
     try {
         settings.value = loadSettingsFromStorage(settings.value)
-        const allowed = new Set(modelOptions.map((option) => option.value))
-        if (ENV_MODEL) allowed.add(ENV_MODEL)
-        if (!allowed.has(settings.value.model)) {
-            settings.value.model = ENV_MODEL || DEFAULT_MODEL
-        }
+        // Cap depth for on-device Nano
+        const d = Number(settings.value.depth)
+        settings.value.depth = Number.isFinite(d) ? Math.max(1, Math.min(NANO_MAX_COUNT, d)) : 3
+        if (settings.value.promptLayers !== 2) settings.value.promptLayers = 1
     } catch (e) {
         console.warn('加载设置失败：', e)
     }
@@ -600,15 +692,21 @@ const isExpanding = ref(false)
 
 const expandSystemPrompt = async () => {
     if (isExpanding.value) return
-    
+
     isExpanding.value = true
     try {
+        const ready = await ensureAiReady()
+        if (!ready) {
+            showError(t('builtinAIUnavailable'))
+            return
+        }
         const content = await expandPrompt({
             currentPrompt: settings.value.systemPrompt,
-            api: settings.value.api,
-            secret: settings.value.secret,
-            model: settings.value.model,
-            language: settings.value.language
+            language: settings.value.language,
+            onDownloadProgress: (loaded) => {
+                aiProgress.value = loaded
+                aiStatus.value = 'downloading'
+            },
         })
 
         if (content) {
@@ -616,7 +714,7 @@ const expandSystemPrompt = async () => {
         }
     } catch (e) {
         console.error(e)
-        showError('AI 请求失败: ' + (e.message || e))
+        showError(t('aiGenerateFailed').replace('{msg}', e?.message || String(e)))
     } finally {
         isExpanding.value = false
     }
@@ -811,7 +909,7 @@ const buildCurrentAiPrompt = () => {
     const baseNode = activeNodes.value?.[0]
     const baseText = getNodeText(baseNode)
     const nodeSystemPrompt = getNodeSystemPrompt(baseNode)
-    const count = Math.max(1, Math.min(20, Number(settings.value.depth) || 5))
+    const count = Math.max(1, Math.min(NANO_MAX_COUNT, Number(settings.value.depth) || 3))
     return {
         baseText,
         count,
@@ -828,12 +926,14 @@ const buildCurrentAiPrompt = () => {
 const aiGenerate = async () => {
     if (isGenerating.value) return
 
-    if (!settings.value.api || settings.value.api.trim().length === 0) {
-        showError('请打开设置，配置API Base')
-        return
-    }
     if (!mindMapRef.value) {
         showError(t('createMapFirst'))
+        return
+    }
+
+    const avail = await refreshAiAvailability()
+    if (aiStatus.value === 'unavailable') {
+        showError(t('builtinAIUnavailable'))
         return
     }
 
@@ -868,23 +968,52 @@ const confirmAiGenerate = async () => {
         return
     }
 
-    const count = Math.max(1, Math.min(20, Number(settings.value.depth) || 5))
     isGenerating.value = true
     debugLog('AI Prompt:', prompt)
     try {
-        const { data } = await requestCompletions({
-            api: settings.value.api,
-            secret: settings.value.secret,
-            model: settings.value.model || DEFAULT_MODEL,
-            temperature: settings.value.temperature,
-            prompt,
+        const ready = await ensureAiReady()
+        if (!ready) {
+            showError(t('builtinAIUnavailable'))
+            return
+        }
+
+        const { generateText } = await import('../ai/generateText.js')
+        let text = await generateText(prompt, {
+            onDownloadProgress: (loaded) => {
+                aiProgress.value = loaded
+                aiStatus.value = 'downloading'
+            },
         })
 
-        const ideas = libExtractIdeas(data, count)
+        let ideas
+        try {
+            ideas = libExtractIdeas(text)
+        } catch (parseErr) {
+            // Nano fallback: retry once with forced 1-layer / smaller count
+            if (settings.value.promptLayers !== 1) {
+                settings.value.promptLayers = 1
+            }
+            const retryPrompt = libBuildPrompt(
+                getNodeText(activeNodes.value?.[0]),
+                2,
+                getNodeSystemPrompt(activeNodes.value?.[0]),
+                settings.value.systemPrompt,
+                { ...settings.value, promptLayers: 1 },
+            )
+            text = await generateText(retryPrompt, {
+                onDownloadProgress: (loaded) => {
+                    aiProgress.value = loaded
+                    aiStatus.value = 'downloading'
+                },
+            })
+            ideas = libExtractIdeas(text)
+        }
+
         debugLog('解析到子节点：', ideas?.length)
-        if (ideas.length) {
+        if (ideas?.length) {
             mindMapRef.value.execCommand('INSERT_MULTI_CHILD_NODE', [], ideas)
             aiPromptOpen.value = false
+            aiStatus.value = 'available'
         } else {
             showError(t('aiNoContent'))
         }
@@ -903,6 +1032,7 @@ const confirmAiGenerate = async () => {
 
 onMounted(async () => {
     loadSettings()
+    refreshAiAvailability()
     const blankData = {
         data: { text: '主题' },
         children: []

@@ -1,16 +1,33 @@
-import { thinkingModels, DEFAULT_MODEL } from './const.js'
+import { thinkingModels } from './const.js'
 import { jsonrepair } from 'jsonrepair'
+import { generateText } from './ai/generateText.js'
 
+/** Cap first-level width for on-device Nano context windows. */
+export const NANO_MAX_COUNT = 4
+
+/**
+ * Build a mind-map generation prompt tuned for Chrome Built-in AI (Gemini Nano).
+ * @param {string} topic
+ * @param {number} count
+ * @param {string} nextSystemPrompt
+ * @param {string} systemPrompt
+ * @param {object} [settings]
+ */
 export function buildPrompt(topic, count, nextSystemPrompt, systemPrompt, settings = {}) {
     const thinkingModel = settings.thinkingModel || 'default'
     const model = thinkingModels.find(m => m.value === thinkingModel) || thinkingModels[0]
     const language = settings.language || '中文'
+    const layers = Number(settings.promptLayers) === 2 ? 2 : 1
+    const safeCount = Math.max(1, Math.min(NANO_MAX_COUNT, Number(count) || 3))
 
     if (!nextSystemPrompt || nextSystemPrompt.trim().length === 0) {
         nextSystemPrompt = "Most relevant key points"
     }
+    let contextBlock = ''
     if (systemPrompt && systemPrompt.trim().length > 0) {
-        systemPrompt = "## Context & Data\n<context>\n" + systemPrompt + "\n</context>\n\n"
+        // Keep knowledge base short for Nano context limits
+        const trimmed = String(systemPrompt).trim().slice(0, 4000)
+        contextBlock = "## Context & Data\n<context>\n" + trimmed + "\n</context>\n\n"
     }
 
     let thinkingPrompt = ""
@@ -23,7 +40,13 @@ Reference principles: ${model.prompt}
 </context>`
     }
 
-    return `${systemPrompt}## Role Definition   
+    const structureRule = layers === 2
+        ? `- Generate a 2-layer mind map: first-level array plus each item's \`children\` array.
+- Each \`children\` array must have at least ${safeCount} and at most ${safeCount * 2} elements.`
+        : `- Generate a **1-layer** mind map only: a JSON array of leaf nodes (each \`children\` must be \`[]\`).
+- Do not nest deeper levels.`
+
+    return `${contextBlock}## Role Definition   
 You are an expert in organizing mind maps, proficient in knowledge related to "${topic}".
 
 ${thinkingPrompt}
@@ -35,19 +58,12 @@ ${thinkingPrompt}
     {
         "data": {
             "text": "Relevant Key Point 1",
-            "note": "Description of the key point",
+            "note": "Short description",
             "nextSystemPrompt": "Prompt for child key points",
-            "color": "Key point color in Hex code"
+            "color": "#8B0A50"
         },
-        "children": [
-            {   
-                "data": {}, // Next level key point
-                "children": [] // Next level child key points
-            },
-            // ... other child key points
-        ]
-    },
-    // ... other key points
+        "children": []
+    }
 ]
 \`\`\`
 </examples>
@@ -55,21 +71,20 @@ ${thinkingPrompt}
 ## Rules
 Please strictly follow these rules:
 <rules>
-- Output in JSON array format
+- Output in JSON array format only (no markdown prose outside the JSON fence if used)
 - Output Language: ${language}
-- Generate a 2-layer mind map structure by default, including the first level array and \`children\` arrays.
-- The first level JSON array must have at least ${count} elements and at most ${count * 2} elements.
-- The \`children\` array of each array element must have at least ${count} elements and at most ${count * 2} elements.
+${structureRule}
+- The first level JSON array must have at least ${safeCount} elements and at most ${safeCount * 2} elements.
 - Thinking Direction: ${nextSystemPrompt}
-- JSON field \`children\` is an array of child key points. Each element is a child key point, which is a JSON object containing \`data\` and \`children\` fields.
-- JSON field \`text\` is a "Brief Description", limited to 20-50 words, and must not be empty.
-- JSON field \`note\` is a "Detailed Description", limited to 40-200 words, and must not be empty.
-- JSON field \`nextSystemPrompt\` is "Keywords summarizing the current level and AI prompt for the next level child key points", limited to 30-60 words. Example: Based on xxx key point, summarize xxx child key points.
-- JSON field \`color\` marks the key point color based on "Color Psychology" principles, using Hex color code. Avoid light colors; each RGB value should be less than 200. Example: \`#8B0A50\`.
+- JSON field \`children\` is an array of child key points. Each element has \`data\` and \`children\`.
+- JSON field \`text\` is a brief title, 8-30 words, not empty.
+- JSON field \`note\` is a short description, 20-80 words, not empty.
+- JSON field \`nextSystemPrompt\` summarizes keywords for the next level, 15-40 words.
+- JSON field \`color\` is a Hex color (avoid light colors; each RGB < 200), e.g. \`#8B0A50\`.
 </rules>
 
 ## Task
-Now, based on "${topic}", output the mind map following the structure in "Output Examples".    
+Based on "${topic}", output the mind map JSON following the rules. Keep the response compact.
 `
 }
 
@@ -112,95 +127,26 @@ export function extractIdeas(raw) {
     return parsed;
 }
 
-export function resolveEndpoint(api) {
-    return (api || '').trim() + '/chat/completions'
-}
-
-// 当 secret 以 my- 开头时，去除该标记并进行 Base64 解码
-function normalizeSecret(secret) {
-    if (!secret) return ''
-    const s = String(secret).trim()
-    if (s.startsWith('my-')) {
-        const encoded = s.slice(3).replace(/\s+/g, '')
-        // 兼容 URL-safe Base64
-        const urlsafe = encoded.replace(/-/g, '+').replace(/_/g, '/')
-        const padded = urlsafe + '='.repeat((4 - (urlsafe.length % 4)) % 4)
-        try {
-            if (typeof atob === 'function') {
-                return atob(padded)
-            }
-            if (typeof Buffer !== 'undefined') {
-                return Buffer.from(padded, 'base64').toString('utf-8')
-            }
-        } catch (e) {
-            console.warn('秘钥Base64解码失败，回退原值：', e)
-            return s
-        }
-    }
-    
-    return s
-}
-
-export async function requestCompletions({
-    api,
-    secret,
-    model = DEFAULT_MODEL,
-    temperature = 0.7,
-    prompt,
-}) {
-    const endpoint = resolveEndpoint(api)
-    if (import.meta.env?.DEV) console.log('AI请求', endpoint)
-
-    const headers = { 'Content-Type': 'application/json' }
-    const authSecret = normalizeSecret(secret)
-    if (authSecret) headers.Authorization = `Bearer ${authSecret}`
-
-    const body = {
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature,
-        max_tokens: 32000,
-        enable_thinking: false,
-    }
-
-    try {
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-        })
-        const isJson = (res.headers.get('content-type') || '').includes('application/json')
-        const data = isJson ? await res.json() : await res.text()
-        return { data, isJson, endpoint }
-    } catch (err) {
-        console.error('AI请求失败', err)
-        throw err
-    }
-}
-
-export async function expandPrompt({ currentPrompt, api, secret, model, language = '中文' }) {
+/**
+ * Expand knowledge-base text via Built-in AI only.
+ * @param {{ currentPrompt: string, language?: string, signal?: AbortSignal, onDownloadProgress?: Function }} opts
+ */
+export async function expandPrompt({
+    currentPrompt,
+    language = '中文',
+    signal,
+    onDownloadProgress,
+} = {}) {
     const prompt = `
 ## Role Definition   
 You are an encyclopedic knowledge expert. Based on "${currentPrompt}", please optimize and expand the detailed content.
 
 ## Task
 - Optimize and expand the detailed content, ensuring it is rich, structured, and meets the requirements for generating a mind map.
-- Output Language: ${language} 
+- Output Language: ${language}
+- Output plain text only (no JSON).
 `
 
-    const { data } = await requestCompletions({
-        api,
-        secret,
-        model,
-        prompt
-    })
-
-    let content = ''
-    if (typeof data === 'string') {
-        content = data
-    } else {
-        content = data?.choices?.[0]?.message?.content || data?.output_text || data?.text || ''
-    }
-
-    return content.trim()
+    const content = await generateText(prompt, { signal, onDownloadProgress })
+    return String(content || '').trim()
 }

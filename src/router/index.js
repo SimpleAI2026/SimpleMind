@@ -1,6 +1,7 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import EditorView from '../views/EditorView.vue'
+import { createAppHistory } from './history.js'
 
 const routes = [
   {
@@ -16,7 +17,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createAppHistory(),
   routes,
 })
 

@@ -3,6 +3,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import HomeView from '../src/views/HomeView.vue'
 
+const aiMocks = vi.hoisted(() => ({
+  checkBuiltinAvailability: vi.fn(async () => ({ status: 'unavailable', reason: 'no-api' })),
+  ensureSession: vi.fn(async () => ({})),
+  generateText: vi.fn(async () => ''),
+}))
+
+vi.mock('../src/ai/generateText.js', () => ({
+  checkBuiltinAvailability: aiMocks.checkBuiltinAvailability,
+  builtinPromptAI: {
+    ensureSession: aiMocks.ensureSession,
+    destroySession: vi.fn(),
+  },
+  generateText: aiMocks.generateText,
+  AI_STATUS: {
+    UNAVAILABLE: 'unavailable',
+    AVAILABLE: 'available',
+    DOWNLOADABLE: 'downloadable',
+    DOWNLOADING: 'downloading',
+  },
+}))
+
+
 const storageMocks = vi.hoisted(() => ({
   loadSettings: vi.fn((defaults) => ({ ...defaults, theme: 'mint', language: 'zh-CN' })),
   saveSettings: vi.fn(),
@@ -84,6 +106,7 @@ describe('HomeView', () => {
     expect(cards[0].classes()).toContain('home-card-create')
     expect(cards[0].text()).toContain('创建')
     expect(wrapper.find('.home-card-plus').exists()).toBe(true)
+    expect(wrapper.find('.home-ai-footer').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -124,6 +147,120 @@ describe('HomeView', () => {
     await flushPromises()
     expect(storageMocks.saveSettings).toHaveBeenCalled()
     expect(wrapper.find('.home-card-create').text()).toContain('Create')
+    wrapper.unmount()
+  })
+})
+
+
+describe('HomeView built-in AI footer', () => {
+  beforeEach(() => {
+    aiMocks.checkBuiltinAvailability.mockReset()
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'unavailable', reason: 'no-api' })
+    aiMocks.ensureSession.mockReset()
+    aiMocks.ensureSession.mockResolvedValue({})
+  })
+
+  it('rechecks availability and downloads when downloadable', async () => {
+    aiMocks.checkBuiltinAvailability
+      .mockResolvedValueOnce({ status: 'downloadable' })
+      .mockResolvedValueOnce({ status: 'downloadable' })
+      .mockResolvedValueOnce({ status: 'available' })
+    const { wrapper } = await mountHome()
+    await flushPromises()
+    expect(wrapper.text()).toMatch(/可下载|downloadable/i)
+
+    const buttons = wrapper.findAll('button')
+    const downloadBtn = buttons.find((b) => /下载|Download|enable/i.test(b.text()))
+    expect(downloadBtn).toBeTruthy()
+    await downloadBtn.trigger('click')
+    await flushPromises()
+    expect(aiMocks.ensureSession).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('handles ensureSession failure and openFullPage in extension', async () => {
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'downloadable' })
+    aiMocks.ensureSession.mockRejectedValueOnce(new Error('dl fail'))
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    vi.stubGlobal('chrome', {
+      runtime: { id: 'ext', getURL: (p) => `chrome-extension://ext/${p}` },
+    })
+    const { wrapper } = await mountHome()
+    await flushPromises()
+    const state = wrapper.vm.$.setupState
+    expect(state.isExtension).toBe(true)
+    await state.ensureAiReady()
+    expect(state.aiStatus).toBe('unavailable')
+    state.openFullPage()
+    expect(openSpy).toHaveBeenCalled()
+    openSpy.mockRestore()
+    vi.unstubAllGlobals()
+    wrapper.unmount()
+  })
+
+  it('covers available/downloading labels and openFullPage fallback', async () => {
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
+    const { wrapper } = await mountHome()
+    await flushPromises()
+    const state = wrapper.vm.$.setupState
+    expect(state.builtinAiStatusLabel).toBeTruthy()
+    state.aiStatus = 'downloading'
+    state.aiProgress = 0.4
+    await flushPromises()
+    expect(wrapper.text()).toMatch(/%/)
+    state.aiStatus = 'unknown'
+    expect(state.builtinAiStatusLabel).toBeTruthy()
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    state.openFullPage()
+    expect(openSpy).toHaveBeenCalled()
+    openSpy.mockRestore()
+    wrapper.unmount()
+  })
+})
+
+
+describe('HomeView openFullPage fallbacks', () => {
+  it('openFullPage when getURL throws', async () => {
+    vi.stubGlobal('chrome', {
+      runtime: {
+        id: 'ext',
+        getURL: () => {
+          throw new Error('bad url')
+        },
+      },
+    })
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const { wrapper } = await mountHome()
+    const state = wrapper.vm.$.setupState
+    state.openFullPage()
+    expect(openSpy).toHaveBeenCalled()
+    openSpy.mockRestore()
+    vi.unstubAllGlobals()
+    wrapper.unmount()
+  })
+
+  it('ensureAiReady returns true when already available', async () => {
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
+    const { wrapper } = await mountHome()
+    const state = wrapper.vm.$.setupState
+    await expect(state.ensureAiReady()).resolves.toBe(true)
+    wrapper.unmount()
+  })
+
+  it('ensureAiReady returns false when unavailable', async () => {
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'unavailable' })
+    const { wrapper } = await mountHome()
+    const state = wrapper.vm.$.setupState
+    await expect(state.ensureAiReady()).resolves.toBe(false)
+    wrapper.unmount()
+  })
+
+  it('refreshAiAvailability handles thrown errors', async () => {
+    aiMocks.checkBuiltinAvailability.mockRejectedValueOnce(new Error('x'))
+    const { wrapper } = await mountHome()
+    const state = wrapper.vm.$.setupState
+    await state.refreshAiAvailability()
+    expect(state.aiStatus).toBe('unavailable')
     wrapper.unmount()
   })
 })

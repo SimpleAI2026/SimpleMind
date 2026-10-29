@@ -2,7 +2,7 @@
 
 [English](./README_EN.md) | 中文
 
-浏览器里运行的免费思维导图工具。默认进入 **Home 主页**，从模板卡片一键开始；进入编辑器后选中节点，按思考模版调用 **OpenAI 兼容** 的 Chat Completions 接口，自动生成子节点。
+浏览器里运行的免费思维导图工具。默认进入 **Home 主页**，从模板卡片一键开始；进入编辑器后选中节点，按思考模版调用 **Chrome 浏览器内置 AI（Prompt API / Gemini Nano）** 在本地生成子节点，**无需 API Key**。
 
 - 在线体验：https://simple-mind-five.vercel.app
 - 仓库：https://github.com/linkxzhou/SimpleMind
@@ -43,11 +43,12 @@
 
 ### AI 生成
 
-- **思考模版**：任意、读书笔记、课程学习、第一性原理、费曼学习法、贝叶斯思维、批判性思维、代码生成。模版从 Home 卡片进入时带入；也可在设置中查看规则与调整。
-- **智能生成**：选中节点后点「AI生成」，根据节点文本、当前模版和知识库插入子节点（默认两层：第一层 + `children`）。「生成最少节点数」范围 1–20，默认 5。
-- **知识库**：在设置中填写系统知识库，或上传 `.md` / `.txt` / `.csv` / `.pdf` 解析为文本（截断约 2 万字）。
-- **AI 扩写**：把当前知识库交给模型扩写后再用于生成。
-- **模型**：设置面板内置 `GLM-5.3`、`Qwen3.8-27B`、`DeepSeek-V4-Flash`。未配置环境变量时默认 `Qwen/Qwen3.8-27B`。也可通过环境变量指定其它模型 ID。
+- **浏览器内置 AI**：仅使用 Chrome Prompt API（`LanguageModel` / 端侧 Gemini Nano）。**不需要、也不支持**配置 API Key / Endpoint / 云端模型。需要 **Chrome 138+**。
+- **思考模版**：任意、读书笔记、课程学习、第一性原理、费曼学习法、贝叶斯思维、批判性思维、代码生成。模版从 Home 卡片进入时带入。
+- **智能生成**：选中节点后点「AI生成」，根据节点文本、当前模版和知识库插入子节点。端侧默认偏小规模（建议节点数 1–4，默认 1 层，必要时自动缩小）。
+- **知识库**：在设置中填写系统知识库，或上传 `.md` / `.txt` / `.csv` / `.pdf` 解析为文本（会截断以适配端侧上下文）。
+- **AI 扩写**：把当前知识库交给内置模型扩写后再用于生成。
+- **不可用时**：提示升级 Chrome / 下载模型或缩小规模；**不会**回退到云端接口。
 
 ### 编辑与视图
 
@@ -63,7 +64,7 @@
 
 - **导出**：`.smm`、`.json`、`.svg`、`.png`、`.pdf`、`.md`、`.xmind`、`.txt`、`card.html`。
 - **导入**：`.smm`、`.json`、`.xmind`、`.md`。界面会列出 `.xlsx`，但尚未实现解析。
-- **持久化**：设置与导图数据写在当前标签页的 `sessionStorage`，关闭标签页后会丢失。
+- **持久化**：Web 版设置与导图数据写在当前标签页的 `sessionStorage`；Chrome 扩展优先使用 `chrome.storage.local`。
 
 ## 环境要求
 
@@ -94,35 +95,28 @@ yarn build
 yarn preview
 ```
 
-## 环境变量
+## Chrome 扩展安装
 
-在项目根目录创建 `.env` 或 `.env.local`（后者已被 git 忽略）。这些值只作为设置面板的**初始默认值**，之后仍可在界面里修改。
+1. `yarn && yarn build:extension`
+2. 打开 Chrome → `chrome://extensions` → 开启「开发者模式」
+3. 「加载已解压的扩展程序」→ 选择项目下的 `dist-extension/`
+4. 点击工具栏图标打开 **Side Panel**；也可在应用内点「全页打开」
 
-应用会把 `VITE_API` 拼上 `/chat/completions` 再发请求，因此 Base URL **不要**包含该路径，也尽量不要带末尾斜杠。
+要求：**Chrome 138+**，设备支持 Built-in AI / Prompt API。首次使用可能需下载端侧模型。
 
-| 变量 | 说明 | 示例 |
-| --- | --- | --- |
-| `VITE_API` | OpenAI 兼容接口的 Base URL | `https://api.openai.com/v1` 或 `https://api.siliconflow.cn/v1` |
-| `VITE_SECRET` | API 密钥，请求头为 `Authorization: Bearer ...` | `sk-xxxxxxxx` |
-| `VITE_MODEL` | 默认模型 ID | `Qwen/Qwen3.8-27B` |
+## 本地 Web 运行
 
-示例：
+仍可用 `yarn dev` / `yarn build` 以普通网页方式调试 UI（AI 同样只走 Built-in AI，需 Chrome 138+）。
 
-```
-VITE_API=https://api.openai.com/v1
-VITE_SECRET=sk-xxxxxxxx
-VITE_MODEL=Qwen/Qwen3.8-27B
-```
-
-不配环境变量也可以：打开设置，填写 API Base、密钥和模型后再点「AI生成」。未填写 API Base 时会提示先配置。
+**不再需要** `VITE_API` / `VITE_SECRET` / `VITE_MODEL` 等云端密钥环境变量。
 
 ## 使用提示
 
-1. 打开应用进入 Home，用右上角切换语言 / 主题。
+1. 打开应用（或扩展 Side Panel）进入 Home，用右上角切换语言 / 主题；底栏可查看内置 AI 状态。
 2. 点「创建」新建导图，或点一张模板卡片加载示例并进入编辑器。
-3. 用环境变量或设置面板配置 API。
+3. 在设置中确认「浏览器内置 AI」已就绪（必要时点下载 / 重新检测）。
 4. 选中中心节点或任一节点，把节点文本改成要展开的主题；可选：在「知识库」粘贴或上传资料。
-5. 点击「AI生成」，子节点会插入到当前选中节点下。换其它思考模版请点工具栏返回主页重新选择。
+5. 点击「AI生成」，确认提示词后子节点会插入到当前选中节点下。换其它思考模版请返回主页重新选择。
 
 ## 开发说明
 

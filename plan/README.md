@@ -10,5 +10,6 @@ UI 美化规划来源：[PR #22](https://github.com/linkxzhou/SimpleMind/pull/22
 | [performance-analysis.md](./performance-analysis.md) | 基于现有源码的性能问题分析、测量方法与优化优先级 | **P0–P2 实用项已落地**（见该文档 §0） |
 | [ui-polish.md](./ui-polish.md) | 控件间距、chrome 颜色 token、抽屉/设置布局与响应式；**工具栏顺序冻结**（只允许改 gap） | **P0–P2 已落地**（P3 与暗色 algorithm 按计划推迟） |
 | [homepage-redesign.md](./homepage-redesign.md) | 科技感主页 + 模板卡片平铺 + 去掉「设置思考模版」toolbar；含 ASCII 与 AGENTS.md | **已完成** |
+| [chrome-extension-builtin-ai.md](./chrome-extension-builtin-ai.md) | Chrome 扩展 + 浏览器内置 AI（Prompt API）；**不保留云端 Key，请求模块全部去掉** | **已完成（P0–P1）** |
 
 建议阅读顺序：先覆盖率（度量），再性能（已落地结果），再 UI 美化（在现有 100vh 画布与按需抽屉之上做间距/颜色，不要回退性能布局改动），再主页改版（**已完成**，已合入 `main`）。实现 UI 时必须遵守 [ui-polish.md](./ui-polish.md) §0：工具栏顺序冻结，只允许改 gap。主页改版确认见 [homepage-redesign.md](./homepage-redesign.md)。

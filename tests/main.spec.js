@@ -20,10 +20,16 @@ vi.mock('../src/router', () => ({
   default: { name: 'router' },
 }))
 
+vi.mock('../src/storage.js', () => ({
+  hydrateFromChromeStorage: vi.fn(async () => {}),
+}))
+
 describe('main.js', () => {
   it('creates the Vue app, installs router, and mounts #app', async () => {
     await import('../src/main.js')
-    expect(createApp).toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(createApp).toHaveBeenCalled()
+    })
     expect(use).toHaveBeenCalledWith({ name: 'router' })
     expect(mount).toHaveBeenCalledWith('#app')
   })

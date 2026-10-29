@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "build:extension": "vite build --config vite.extension.config.js",
+    "build:all": "yarn build && yarn build:extension"
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",

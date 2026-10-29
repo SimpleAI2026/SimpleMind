@@ -15,3 +15,13 @@
 ## UI 约束
 - Editor 工具栏按钮顺序遵守 `plan/ui-polish.md` 冻结序列，并去掉「设置思考模版」按钮后其余顺序不变：
   `[- 100% +][<][>][+][🗑][↓][⇅][▦][⚙][AI生成]`（返回主页为导航入口，置于工具栏最前）。
+
+
+## Chrome 扩展与内置 AI
+- 主交付形态可为 **Chrome 扩展（MV3 Side Panel）**；构建产物目录 `dist-extension/`（`yarn build:extension`）。
+- AI **只走** Chrome Built-in AI（Prompt API / `LanguageModel` / 端侧 Gemini Nano）。**禁止**要求用户配置 API Key / Endpoint / 云端模型名，**禁止**云端 Chat Completions 回退。
+- 传输层抽象为 `generateText(prompt) → string`，实现仅为 `BuiltinPromptAI`；继续复用 `buildPrompt` / `extractIdeas`。
+- Nano 不足时：缩小规模（降 count / 1 层）或明确失败提示，不得接第三方云端 Key。
+- 扩展内设置优先 `chrome.storage.local`；Web 仍可用 `sessionStorage`。
+- 扩展需 Chrome **138+**；Side Panel 为主入口，并提供「全页打开」。
+- Editor 工具栏顺序规则（ui-polish）仍然适用；**无**「设置思考模版」toolbar 按钮。
