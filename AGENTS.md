@@ -27,12 +27,15 @@
 - Editor 工具栏顺序规则（ui-polish）仍然适用；**无**「设置思考模版」toolbar 按钮。
 
 ## SimpleChat（右侧聊天面板）
-- Editor **右侧 AI 面板**嵌入 `@simplechat/vue`（`layout="panel"`），用于多轮聊天 + 工具调用。
+- Editor **右侧 AI 面板**嵌入本地 `src/components/SimpleChatSidebar.js`（包一层 `<simple-chat>`，`layout="panel"`），用于多轮聊天 + 工具调用。
+- Web Component + 宽度工具来自 vendored ESM：`src/vendor/simplechat/simplechat.min.js`（样式在 Shadow DOM 内，无需另拷 CSS）。
+- 右侧聊天面板宽度可拖动（左缘 resize handle，320–720px），与 SimpleChat `--sc-width` / localStorage `simplechat:sidebar-width` / 宿主 `--ai-panel-width` 同步。
 - **工具栏「AI生成」**打开 / 聚焦右侧 SimpleChat 面板（主路径）。BuiltinPromptAI 生成保留为次要能力，**不得**把「AI生成」改成云端回退。
 - SimpleChat 皮肤跟随 SimpleMind 当前主题（`--sc-*` / themeCss）；系统提示从知识库 `systemPrompt` + 选中节点 + 思考模型 **自动注入**。
-- SimpleChat 可在设置中配置可选云端 `chatApiBaseUrl` / `chatApiKey` / `chatModel`（OpenAI 兼容）；与内置 AI 通道分离。
+- 云端 `apiBaseUrl` / `apiKey` / `model`（OpenAI 兼容）由 **Chat 右上角 ⚙** 配置并写入 localStorage；宿主设置不再编辑这些字段（可一次性迁移旧宿主值）。与内置 AI 通道分离。
+- **Built-in AI** 状态 / 重新检测 / 下载入口在 Chat ⚙（宿主通过 `setHostSettingsSlot` 注入），不再放在 Editor 设置弹窗。
 - 宿主只注册最小权限工具：`get_selected_node`（读）、`add_child_nodes`（在选中节点下写子节点）。
 - 聊天历史 `storageKey` 绑定当前导图 root `uid`（`simplemind-chat-<uid>`）。
-- 本地依赖：Yarn portal `portal:../SimpleChat/packages/*` + Vite alias 到 `packages/*/dist`；改 SimpleChat 后先 `yarn build`（SimpleChat）再刷新 SimpleMind。
-- 聊天右上角 ⚙ 可写 Base URL / Key / Model / 主题（localStorage）；宿主设置里也可填同一套字段（空则回落 storage/env）。
+- **无** Yarn portal / npm `@simplechat/*`。改 SimpleChat 后在兄弟仓库执行 `cd ../SimpleChat && yarn build:min`（默认自动拷贝到本仓库 `src/vendor/simplechat/`）。
+- 聊天右上角 ⚙：Base URL / Key / Model / 主题 / 工具样式 + 宿主注入的 Built-in AI 区块。
 

@@ -17,9 +17,6 @@
     "build:all": "yarn build && yarn build:extension"
   },
   "dependencies": {
-    "@simplechat/core": "portal:../SimpleChat/packages/core",
-    "@simplechat/element": "portal:../SimpleChat/packages/element",
-    "@simplechat/vue": "portal:../SimpleChat/packages/vue",
     "ant-design-vue": "^4.2.6",
     "jsonrepair": "^3.13.1",
     "pdfjs-dist": "^3",
@@ -36,10 +33,5 @@
     "vite": "^7.1.11",
     "vite-plugin-vue-devtools": "^8.0.3",
     "vitest": "3.2.4"
-  },
-  "resolutions": {
-    "@simplechat/core": "portal:../SimpleChat/packages/core",
-    "@simplechat/element": "portal:../SimpleChat/packages/element",
-    "@simplechat/vue": "portal:../SimpleChat/packages/vue"
   }
 }

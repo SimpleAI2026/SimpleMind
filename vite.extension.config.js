@@ -2,10 +2,9 @@ import { fileURLToPath, URL } from "node:url"
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
 import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 
 const root = fileURLToPath(new URL(".", import.meta.url))
-const simpleChatRoot = fileURLToPath(new URL("../SimpleChat/packages", import.meta.url))
 const outDir = join(root, "dist-extension")
 
 function copyExtensionAssets() {
@@ -45,10 +44,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@simplechat/core": resolve(simpleChatRoot, "core/dist/index.js"),
-      "@simplechat/element": resolve(simpleChatRoot, "element/dist/index.js"),
-      "@simplechat/element/style.css": resolve(simpleChatRoot, "element/dist/style.css"),
-      "@simplechat/vue": resolve(simpleChatRoot, "vue/dist/index.js"),
     },
   },
   build: {

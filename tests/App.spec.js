@@ -180,14 +180,31 @@ vi.mock('../src/parser.js', () => ({
 
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('@simplechat/vue', () => ({
+vi.mock('../src/components/SimpleChatSidebar.js', () => ({
   SimpleChatSidebar: {
     name: 'SimpleChatSidebar',
     props: ['open', 'config', 'tools', 'storageKey', 'layout', 'position', 'themeCss', 'themeStyle'],
     emits: ['close', 'update:open'],
     template: '<div class="simple-chat-mock" data-testid="simple-chat-mock">SimpleChat</div>',
   },
+  default: {
+    name: 'SimpleChatSidebar',
+    props: ['open', 'config', 'tools', 'storageKey', 'layout', 'position', 'themeCss', 'themeStyle'],
+    emits: ['close', 'update:open'],
+    template: '<div class="simple-chat-mock" data-testid="simple-chat-mock">SimpleChat</div>',
+  },
 }))
+
+vi.mock('../src/vendor/simplechat/index.js', () => ({
+  SC_WIDTH_DEFAULT: 400,
+  SC_WIDTH_MIN: 320,
+  SC_WIDTH_MAX: 720,
+  clampSidebarWidth: (n) => Math.min(720, Math.max(320, Math.round(Number(n) || 400))),
+  loadSidebarWidth: () => 400,
+  saveSidebarWidth: () => {},
+}))
+
+vi.mock('../src/vendor/simplechat/simplechat.min.js', () => ({}))
 
 import EditorView from '../src/views/EditorView.vue'
 import HomeView from '../src/views/HomeView.vue'

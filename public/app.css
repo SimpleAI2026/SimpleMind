@@ -606,7 +606,7 @@ body {
 
 /* Editor right AI panel (in-page; main app is full tab) */
 #mindMapContainer.with-ai-panel {
-  max-width: calc(100% - 400px);
+  max-width: calc(100% - var(--ai-panel-width, 400px));
 }
 
 .ai-panel-edge-toggle {
@@ -650,7 +650,7 @@ body {
   position: fixed;
   top: 0;
   right: 0;
-  width: min(400px, 92vw);
+  width: min(var(--ai-panel-width, 400px), 92vw);
   height: 100vh;
   z-index: 120;
   display: flex;
@@ -659,12 +659,14 @@ body {
   border-left: none;
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
   color: inherit;
+  /* Clip panel chrome only; do not rely on this to hide SimpleChat header actions */
   overflow: hidden;
   padding: 0;
 }
 
 .ai-side-panel--chat {
   /* SimpleChat (layout=panel) fills the host drawer */
+  overflow: hidden;
 }
 
 .ai-side-panel-chat {
@@ -673,6 +675,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .ai-side-panel-chat simple-chat,
@@ -680,7 +685,10 @@ body {
   flex: 1;
   min-height: 0;
   height: 100%;
+  width: 100%;
   display: block;
+  /* Ensure host contrast tokens reach shadow :host for header icon color */
+  color: var(--sc-foreground, inherit);
 }
 
 .ai-side-panel-header {
@@ -719,6 +727,6 @@ body {
     max-width: 100%;
   }
   .ai-side-panel {
-    width: min(100vw, 400px);
+    width: min(100vw, var(--ai-panel-width, 400px));
   }
 }

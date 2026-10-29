@@ -90,12 +90,14 @@
   "aiPanel": "AI panel",
   "aiPanelCollapse": "Collapse",
   "simpleChat": "SimpleChat",
-  "simpleChatHint": "Optional cloud chat (OpenAI-compatible). Toolbar “AI Generate” opens SimpleChat; use the ⚙ gear in chat for Base URL / Key / Model / theme. Toolbar Built-in AI still uses Chrome Built-in AI.",
+  "simpleChatHint": "Configure cloud chat (OpenAI-compatible) and Built-in AI status in the Chat panel ⚙. Toolbar “AI Generate” still uses Chrome Built-in AI.",
   "simpleChatApiBase": "API Base URL",
   "simpleChatApiKey": "API Key",
   "simpleChatModel": "Model",
   "simpleChatRememberKey": "Remember key (stored locally; XSS risk)",
   "simpleChatSystemPrompt": "Chat system prompt",
-  "simpleChatWarn": "API keys are for personal/intranet use only; use a same-origin proxy in production. In-chat settings persist to localStorage (XSS risk).",
-  "simpleChatAutoPromptHint": "System prompt is auto-injected from the knowledge base (Settings → System prompt), selected node, thinking model, and tool instructions — no need to type it here."
+  "simpleChatWarn": "Cloud API keys are for personal/intranet use only; use a same-origin proxy in production. Chat ⚙ settings persist to localStorage (XSS risk).",
+  "simpleChatAutoPromptHint": "System prompt is auto-injected from the knowledge base (Settings → System prompt), selected node, thinking model, and tool instructions.",
+  "simpleChatCloudHint": "Configure cloud Base URL / API Key / Model in Chat ⚙.",
+  "builtinAIInChatHint": "Built-in AI status and download live in Chat ⚙."
 }

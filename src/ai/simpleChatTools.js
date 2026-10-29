@@ -5,7 +5,7 @@
 
 /**
  * @param {{ getMindMap: () => any, getActiveNodes: () => any[] }} deps
- * @returns {import('@simplechat/core').HostTool[]}
+ * @returns {Array<{ name: string, description?: string, parameters?: object, handler: Function }>}
  */
 export function createMindChatTools({ getMindMap, getActiveNodes }) {
   return [

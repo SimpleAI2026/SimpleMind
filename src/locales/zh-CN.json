@@ -90,12 +90,14 @@
   "aiPanel": "AI 面板",
   "aiPanelCollapse": "收起",
   "simpleChat": "SimpleChat",
-  "simpleChatHint": "可选云端聊天（OpenAI 兼容）。工具栏「AI生成」打开右侧 SimpleChat；也可在聊天右上角 ⚙ 配置 Base URL / Key / Model / 主题。工具栏内置 AI 仍走 Chrome Built-in AI。",
+  "simpleChatHint": "云端聊天（OpenAI 兼容）与浏览器内置 AI 请在右侧 Chat 面板右上角 ⚙ 中配置 / 查看。工具栏「AI生成」仍走 Chrome Built-in AI。",
   "simpleChatApiBase": "API Base URL",
   "simpleChatApiKey": "API Key",
   "simpleChatModel": "模型",
   "simpleChatRememberKey": "记住 Key（写入本机存储，有 XSS 风险）",
   "simpleChatSystemPrompt": "聊天系统提示",
-  "simpleChatWarn": "API Key 仅建议个人/内网使用；生产请用同源代理。聊天内设置会写入本机 localStorage（有 XSS 风险）。",
-  "simpleChatAutoPromptHint": "系统提示会自动注入：知识库（设置→系统提示）+ 当前选中节点 + 思考模型 + 工具说明，无需在此填写。"
+  "simpleChatWarn": "云端 API Key 仅建议个人/内网使用；生产请用同源代理。Chat ⚙ 设置会写入本机 localStorage（有 XSS 风险）。",
+  "simpleChatAutoPromptHint": "系统提示会自动注入：知识库（设置→系统提示）+ 当前选中节点 + 思考模型 + 工具说明。",
+  "simpleChatCloudHint": "云端 Base URL / API Key / Model 请在 Chat ⚙ 中配置。",
+  "builtinAIInChatHint": "内置 AI 状态与下载已移至 Chat ⚙。"
 }
