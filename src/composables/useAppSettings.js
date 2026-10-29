@@ -1,19 +1,14 @@
 import { computed, ref, watch } from 'vue'
 import { loadSettings, saveSettings } from '../storage.js'
 import { getThemeList } from '../utils.js'
-import { ENV_API, ENV_SECRET, ENV_MODEL } from '../utils.js'
-import { DEFAULT_MODEL } from '../const.js'
 
 const DEFAULT_CANVAS_BACKGROUND = '#f5f5f5'
 const DEFAULT_LINE_COLOR = '#549688'
 
 const defaults = {
-  api: ENV_API || '',
-  secret: ENV_SECRET || '',
-  model: ENV_MODEL || DEFAULT_MODEL,
   temperature: 0.6,
   systemPrompt: '',
-  depth: 5,
+  depth: 3,
   thinkingModel: 'default',
   language: 'zh-CN',
   layout: 'mindMap',
@@ -24,9 +19,14 @@ const defaults = {
   fontFamily: '微软雅黑, Microsoft YaHei',
   themeRootFillColor: '#00c0b8',
   theme: 'mint',
+  promptLayers: 1,
+  chatApiBaseUrl: 'https://api.siliconflow.cn/v1',
+  chatApiKey: '',
+  chatModel: 'Qwen/Qwen2.5-7B-Instruct',
+  chatRememberKey: false,
 }
 
-/** Shared settings for Home / Editor (sessionStorage backed). */
+/** Shared settings for Home / Editor (sessionStorage / chrome.storage backed). */
 export function useAppSettings() {
   const themeList = getThemeList()
   const settings = ref(loadSettings({ ...defaults }))

@@ -69,8 +69,25 @@ const storageMocks = vi.hoisted(() => ({
 const libaiMocks = vi.hoisted(() => ({
   buildPrompt: vi.fn(() => 'PROMPT'),
   extractIdeas: vi.fn(() => [{ data: { text: 'idea' } }]),
-  requestCompletions: vi.fn(async () => ({ data: { ok: true } })),
   expandPrompt: vi.fn(async () => 'expanded'),
+  NANO_MAX_COUNT: 4,
+}))
+
+const aiMocks = vi.hoisted(() => ({
+  generateText: vi.fn(async () => '[{"data":{"text":"idea"},"children":[]}]'),
+  checkBuiltinAvailability: vi.fn(async () => ({ status: 'available' })),
+  builtinPromptAI: {
+    ensureSession: vi.fn(async () => ({})),
+    destroySession: vi.fn(),
+    generateText: vi.fn(async () => '[{"data":{"text":"idea"},"children":[]}]'),
+  },
+  AI_STATUS: {
+    UNKNOWN: 'unknown',
+    UNAVAILABLE: 'unavailable',
+    DOWNLOADABLE: 'downloadable',
+    DOWNLOADING: 'downloading',
+    AVAILABLE: 'available',
+  },
 }))
 
 const parserMocks = vi.hoisted(() => ({
@@ -123,9 +140,6 @@ vi.mock('../src/utils.js', () => ({
   showError: utilsMocks.showError,
   exportMindMap: utilsMocks.exportMindMap,
   importFileToMindMap: utilsMocks.importFileToMindMap,
-  ENV_API: '',
-  ENV_SECRET: '',
-  ENV_MODEL: '',
   switchTextNoteMode: utilsMocks.switchTextNoteMode,
   getThemeList: utilsMocks.getThemeList,
   buildCardHtml: (root) => `<html>${JSON.stringify(root || {})}</html>`,
@@ -149,8 +163,15 @@ vi.mock('../src/storage.js', () => ({
 vi.mock('../src/libai.js', () => ({
   buildPrompt: libaiMocks.buildPrompt,
   extractIdeas: libaiMocks.extractIdeas,
-  requestCompletions: libaiMocks.requestCompletions,
   expandPrompt: libaiMocks.expandPrompt,
+  NANO_MAX_COUNT: libaiMocks.NANO_MAX_COUNT,
+}))
+
+vi.mock('../src/ai/generateText.js', () => ({
+  generateText: aiMocks.generateText,
+  checkBuiltinAvailability: aiMocks.checkBuiltinAvailability,
+  builtinPromptAI: aiMocks.builtinPromptAI,
+  AI_STATUS: aiMocks.AI_STATUS,
 }))
 
 vi.mock('../src/parser.js', () => ({
@@ -158,6 +179,33 @@ vi.mock('../src/parser.js', () => ({
 }))
 
 import { createMemoryHistory, createRouter } from 'vue-router'
+
+vi.mock('../src/components/SimpleChatSidebar.js', () => ({
+  SimpleChatSidebar: {
+    name: 'SimpleChatSidebar',
+    props: ['open', 'config', 'tools', 'storageKey', 'layout', 'position', 'themeCss', 'themeStyle'],
+    emits: ['close', 'update:open'],
+    template: '<div class="simple-chat-mock" data-testid="simple-chat-mock">SimpleChat</div>',
+  },
+  default: {
+    name: 'SimpleChatSidebar',
+    props: ['open', 'config', 'tools', 'storageKey', 'layout', 'position', 'themeCss', 'themeStyle'],
+    emits: ['close', 'update:open'],
+    template: '<div class="simple-chat-mock" data-testid="simple-chat-mock">SimpleChat</div>',
+  },
+}))
+
+vi.mock('../src/vendor/simplechat/index.js', () => ({
+  SC_WIDTH_DEFAULT: 400,
+  SC_WIDTH_MIN: 320,
+  SC_WIDTH_MAX: 720,
+  clampSidebarWidth: (n) => Math.min(720, Math.max(320, Math.round(Number(n) || 400))),
+  loadSidebarWidth: () => 400,
+  saveSidebarWidth: () => {},
+}))
+
+vi.mock('../src/vendor/simplechat/simplechat.min.js', () => ({}))
+
 import EditorView from '../src/views/EditorView.vue'
 import HomeView from '../src/views/HomeView.vue'
 
@@ -213,10 +261,14 @@ beforeEach(() => {
   libaiMocks.buildPrompt.mockClear()
   libaiMocks.extractIdeas.mockReset()
   libaiMocks.extractIdeas.mockReturnValue([{ data: { text: 'idea' } }])
-  libaiMocks.requestCompletions.mockReset()
-  libaiMocks.requestCompletions.mockResolvedValue({ data: { ok: true } })
   libaiMocks.expandPrompt.mockReset()
   libaiMocks.expandPrompt.mockResolvedValue('expanded')
+  aiMocks.generateText.mockReset()
+  aiMocks.generateText.mockResolvedValue('[{"data":{"text":"idea"},"children":[]}]')
+  aiMocks.checkBuiltinAvailability.mockReset()
+  aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
+  aiMocks.builtinPromptAI.ensureSession.mockReset()
+  aiMocks.builtinPromptAI.ensureSession.mockResolvedValue({})
   parserMocks.parseFileAsPrompt.mockReset()
   parserMocks.parseFileAsPrompt.mockResolvedValue('parsed-kb')
   vi.stubGlobal(
@@ -254,13 +306,16 @@ describe('App.vue lifecycle', () => {
     wrapper.unmount()
   })
 
-  it('resets the model when stored model is not allowed', async () => {
+  it('caps depth for on-device Nano when loading settings', async () => {
     storageMocks.loadSettingsFromStorage.mockImplementation((defaults) => ({
       ...defaults,
-      model: 'not-allowed',
+      depth: 99,
+      api: 'legacy',
+      secret: 'x',
+      model: 'legacy-model',
     }))
     const { wrapper, state } = await mountApp()
-    expect(state.settings.model).toBe('Qwen/Qwen3.8-27B')
+    expect(state.settings.depth).toBe(4)
     wrapper.unmount()
   })
 
@@ -578,6 +633,7 @@ describe('settings / prompt / export / import', () => {
     })
     libaiMocks.expandPrompt.mockReturnValueOnce(pending)
     const inFlight = state.expandSystemPrompt()
+    await flushPromises()
     await state.expandSystemPrompt()
     expect(libaiMocks.expandPrompt).toHaveBeenCalledTimes(4)
     resolvePending('later')
@@ -706,7 +762,6 @@ describe('card modal', () => {
 
 describe('aiGenerate', () => {
   const readyForPrompt = (state) => {
-    state.settings.api = 'https://api.test'
     state.activeNodes = [
       {
         data: { text: '主题', nextSystemPrompt: 'next' },
@@ -714,71 +769,78 @@ describe('aiGenerate', () => {
     ]
   }
 
-  it('returns immediately while generating and validates inputs', async () => {
+  it('toolbar AI生成 opens SimpleChat sidebar (primary UX)', async () => {
     const { wrapper, state } = await mountApp()
-    state.isGenerating = true
-    await state.aiGenerate()
-    expect(libaiMocks.requestCompletions).not.toHaveBeenCalled()
+    state.aiPanelOpen = false
+    await nextTick()
+    state.aiGenerate()
+    expect(state.aiPanelOpen).toBe(true)
     expect(state.aiPromptOpen).toBe(false)
+    expect(aiMocks.generateText).not.toHaveBeenCalled()
 
-    state.isGenerating = false
-    state.settings.api = '  '
-    await state.aiGenerate()
-    expect(utilsMocks.showError).toHaveBeenCalledWith('请打开设置，配置API Base')
+    const aiBtn = [...document.querySelectorAll('.toolbar-inner button')].find(
+      (button) => button.getAttribute('title') === 'AI生成',
+    )
+    expect(aiBtn).toBeTruthy()
+    state.aiPanelOpen = false
+    await aiBtn.click()
+    await flushPromises()
+    expect(state.aiPanelOpen).toBe(true)
     expect(state.aiPromptOpen).toBe(false)
-
-    state.settings.api = 'https://api.test'
-    state.mindMapRef = null
-    await state.aiGenerate()
-    expect(utilsMocks.showError).toHaveBeenCalledWith('请先创建一个思维导图')
-    expect(state.aiPromptOpen).toBe(false)
+    expect(aiMocks.generateText).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it('opens an editable prompt modal and does not generate until confirm', async () => {
+  it('openBuiltinAiPrompt validates and opens editable prompt modal (secondary)', async () => {
     const { wrapper, state, mm } = await mountApp()
-    state.settings.api = 'https://api.test'
+    state.isGenerating = true
+    await state.openBuiltinAiPrompt()
+    expect(aiMocks.generateText).not.toHaveBeenCalled()
+    expect(state.aiPromptOpen).toBe(false)
+
+    state.isGenerating = false
+    aiMocks.checkBuiltinAvailability.mockResolvedValueOnce({ status: 'unavailable', reason: 'no-api' })
+    await state.openBuiltinAiPrompt()
+    expect(utilsMocks.showError).toHaveBeenCalled()
+    expect(state.aiPromptOpen).toBe(false)
+
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
+    state.mindMapRef = null
+    await state.openBuiltinAiPrompt()
+    expect(utilsMocks.showError).toHaveBeenCalledWith('请先创建一个思维导图')
+    expect(state.aiPromptOpen).toBe(false)
+
+    state.mindMapRef = mm
     state.settings.depth = 99
     state.activeNodes = [{ data: { text: '   ' } }]
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(utilsMocks.showError).toHaveBeenCalledWith('请先选择一个节点或者输入一个主题')
     expect(state.aiPromptOpen).toBe(false)
-    expect(libaiMocks.requestCompletions).not.toHaveBeenCalled()
 
     readyForPrompt(state)
     state.settings.depth = 99
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(libaiMocks.buildPrompt).toHaveBeenCalledWith(
       '主题',
-      20,
+      4,
       'next',
       expect.anything(),
       expect.anything(),
     )
     expect(state.aiPromptOpen).toBe(true)
     expect(state.aiPromptText).toBe('PROMPT')
-    expect(libaiMocks.requestCompletions).not.toHaveBeenCalled()
-    expect(mm.execCommand).not.toHaveBeenCalledWith(
-      'INSERT_MULTI_CHILD_NODE',
-      [],
-      expect.any(Array),
-    )
-    expect(utilsMocks.showLoading).not.toHaveBeenCalled()
-
-    await nextTick()
-    expect(document.body.textContent).toContain('确认生成提示词')
-    expect(document.body.textContent).toContain('确认生成')
+    expect(aiMocks.generateText).not.toHaveBeenCalled()
+    expect(state.aiPanelOpen).toBe(true)
 
     state.closeAiPromptModal()
     expect(state.aiPromptOpen).toBe(false)
-    expect(libaiMocks.requestCompletions).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
   it('confirms the edited prompt, shows confirm loading, and handles empty/error paths', async () => {
     const { wrapper, state, mm } = await mountApp()
     readyForPrompt(state)
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(state.aiPromptOpen).toBe(true)
 
     state.aiPromptText = 'EDITED-PROMPT'
@@ -786,7 +848,7 @@ describe('aiGenerate', () => {
     const pending = new Promise((resolve) => {
       resolvePending = resolve
     })
-    libaiMocks.requestCompletions.mockReturnValueOnce(pending)
+    aiMocks.generateText.mockReturnValueOnce(pending)
     const inFlight = state.confirmAiGenerate()
     await nextTick()
     expect(state.isGenerating).toBe(true)
@@ -798,19 +860,18 @@ describe('aiGenerate', () => {
     expect(state.aiPromptOpen).toBe(true)
     await state.confirmAiGenerate()
 
-    resolvePending({ data: { ok: true } })
+    resolvePending('[{"data":{"text":"idea"},"children":[]}]')
     await inFlight
-    expect(libaiMocks.requestCompletions).toHaveBeenCalledWith(
-      expect.objectContaining({ prompt: 'EDITED-PROMPT' }),
+    expect(aiMocks.generateText).toHaveBeenCalledWith(
+      'EDITED-PROMPT',
+      expect.any(Object),
     )
     expect(mm.execCommand).toHaveBeenCalledWith('INSERT_MULTI_CHILD_NODE', [], expect.any(Array))
     expect(state.aiPromptOpen).toBe(false)
     expect(state.isGenerating).toBe(false)
-    expect(utilsMocks.showLoading).not.toHaveBeenCalled()
-    expect(utilsMocks.hideLoading).not.toHaveBeenCalled()
 
     readyForPrompt(state)
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     libaiMocks.extractIdeas.mockReturnValueOnce([])
     await state.confirmAiGenerate()
     expect(utilsMocks.showError).toHaveBeenCalledWith(
@@ -818,7 +879,7 @@ describe('aiGenerate', () => {
     )
     expect(state.aiPromptOpen).toBe(true)
 
-    libaiMocks.requestCompletions.mockRejectedValueOnce(new Error('llm down'))
+    aiMocks.generateText.mockRejectedValueOnce(new Error('llm down'))
     await state.confirmAiGenerate()
     expect(utilsMocks.showError.mock.calls.at(-1)[0]).toContain('llm down')
     expect(state.aiPromptOpen).toBe(true)
@@ -839,22 +900,68 @@ describe('aiGenerate', () => {
       },
     ]
     state.settings.depth = -2
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(libaiMocks.buildPrompt.mock.calls.at(-1)[1]).toBe(1)
     wrapper.unmount()
   })
 
-  it('toolbar AI button opens the prompt modal instead of generating', async () => {
+  it('auto-injects system prompt and maps theme tokens for SimpleChat', async () => {
     const { wrapper, state } = await mountApp()
-    readyForPrompt(state)
-    const aiBtn = [...document.querySelectorAll('.toolbar-inner button')].find(
-      (button) => button.getAttribute('title') === 'AI生成',
-    )
-    expect(aiBtn).toBeTruthy()
-    await aiBtn.click()
-    await flushPromises()
-    expect(state.aiPromptOpen).toBe(true)
-    expect(libaiMocks.requestCompletions).not.toHaveBeenCalled()
+    state.settings.systemPrompt = 'KB-FROM-SETTINGS'
+    state.settings.theme = 'mint'
+    state.settings.themeRootFillColor = '#00c0b8'
+    state.activeNodes = [{ data: { text: '选中', nextSystemPrompt: 'hint' } }]
+    await nextTick()
+    expect(state.autoChatSystemPrompt).toContain('KB-FROM-SETTINGS')
+    expect(state.autoChatSystemPrompt).toContain('选中')
+    expect(state.simpleChatConfig.systemPrompt).toContain('KB-FROM-SETTINGS')
+    expect(state.simpleChatThemeStyle['--sc-primary']).toBe('#00c0b8')
+    expect(state.simpleChatThemeCss).toContain('--sc-primary')
+    wrapper.unmount()
+  })
+})
+
+
+describe('built-in AI helpers in editor', () => {
+  it('ensureAiReady downloads model and AI side panel toggles', async () => {
+    const { wrapper, state } = await mountApp()
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'downloadable' })
+    aiMocks.builtinPromptAI.ensureSession.mockImplementationOnce(async ({ onDownloadProgress }) => {
+      onDownloadProgress?.(0.25)
+      return {}
+    })
+    await expect(state.ensureAiReady()).resolves.toBe(true)
+    expect(state.aiStatus).toBe('available')
+
+    aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'downloadable' })
+    aiMocks.builtinPromptAI.ensureSession.mockRejectedValueOnce(new Error('nope'))
+    await expect(state.ensureAiReady()).resolves.toBe(false)
+    expect(state.aiStatus).toBe('unavailable')
+
+    aiMocks.checkBuiltinAvailability.mockRejectedValueOnce(new Error('probe fail'))
+    await state.refreshAiAvailability()
+    expect(state.aiStatus).toBe('unavailable')
+
+    expect(state.aiPanelOpen).toBe(true)
+    state.aiPanelOpen = false
+    await nextTick()
+    expect(wrapper.find('.ai-panel-edge-toggle').exists()).toBe(true)
+    state.aiPanelOpen = true
+    await nextTick()
+    expect(wrapper.find('.ai-side-panel').exists()).toBe(true)
+
+    // confirmAiGenerate retries when extractIdeas throws once
+    state.activeNodes = [{ data: { text: '主题' } }]
+    state.aiPromptText = 'PROMPT'
+    state.mindMapRef = mindMapState.instances.at(-1)
+    libaiMocks.extractIdeas
+      .mockImplementationOnce(() => { throw new Error('bad json') })
+      .mockReturnValueOnce([{ data: { text: 'retry' } }])
+    aiMocks.generateText
+      .mockResolvedValueOnce('bad')
+      .mockResolvedValueOnce('[{"data":{"text":"retry"},"children":[]}]')
+    await state.confirmAiGenerate()
+    expect(aiMocks.generateText).toHaveBeenCalledTimes(2)
     wrapper.unmount()
   })
 })
@@ -999,14 +1106,13 @@ describe('coverage edge branches', () => {
     await state.newMap('https://x/bad.json')
 
     state.activeNodes = [{ data: {} }]
-    state.settings.api = 'https://api.test'
     state.settings.depth = 'nope'
-    state.settings.model = ''
-    await state.aiGenerate()
+    state.aiGenerate()
+    expect(state.aiPanelOpen).toBe(true)
 
     state.activeNodes = [{ data: { text: 'ok' } }]
-    await state.aiGenerate()
-    libaiMocks.requestCompletions.mockRejectedValueOnce('bare-string')
+    await state.openBuiltinAiPrompt()
+    aiMocks.generateText.mockRejectedValueOnce('bare-string')
     await state.confirmAiGenerate()
 
     state.settings.language = 'zh-CN'
@@ -1041,12 +1147,6 @@ describe('coverage edge branches', () => {
     await emitValue('Select', 'dark')
     await nextTick()
 
-    document.body.querySelector('input[name="api"]')?.dispatchEvent(
-      new Event('input', { bubbles: true }),
-    )
-    document.body.querySelector('input[name="secret"]')?.dispatchEvent(
-      new Event('input', { bubbles: true }),
-    )
 
     const layoutBtns = [...document.body.querySelectorAll('.chart-list button')]
     expect(layoutBtns.length).toBeGreaterThan(0)

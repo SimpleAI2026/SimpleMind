@@ -48,9 +48,6 @@ const t = (key) => {
     return messages[lang]?.[key] ?? key
 }
 
-export const ENV_API = (env.VITE_API ?? '').trim()
-export const ENV_SECRET = (env.VITE_SECRET ?? '').trim()
-export const ENV_MODEL = (env.VITE_MODEL ?? '').trim()
 
 const CARD_DATA_RE = /\/\/ \{\{REPLACE:cardData BEGIN\}\}[\s\S]*?\/\/ \{\{REPLACE:cardData END\}\}/
 

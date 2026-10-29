@@ -4719,7 +4719,7 @@ __metadata:
     vite-plugin-vue-devtools: "npm:^8.0.3"
     vitest: "npm:3.2.4"
     vue: "npm:^3.5.22"
-    vue-router: "npm:4"
+    vue-router: "npm:^4.6.4"
   languageName: unknown
   linkType: soft
 
@@ -5393,7 +5393,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vue-router@npm:4":
+"vue-router@npm:^4.6.4":
   version: 4.6.4
   resolution: "vue-router@npm:4.6.4"
   dependencies:

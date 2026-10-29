@@ -13,6 +13,8 @@ import {
   consumePendingEditorAction,
   PENDING_EDITOR_KEY,
   resetMindMapSaveState,
+  isExtensionContext,
+  hydrateFromChromeStorage,
 } from '../src/storage.js'
 
 afterEach(() => {
@@ -26,7 +28,7 @@ afterEach(() => {
 
 describe('loadSettings', () => {
   it('returns a copy of defaults when the key is missing', () => {
-    const defaults = { api: 'x', temperature: 0.5, depth: 4 }
+    const defaults = { temperature: 0.5, depth: 4 }
     const loaded = loadSettings(defaults)
     expect(loaded).toEqual(defaults)
     expect(loaded).not.toBe(defaults)
@@ -35,11 +37,12 @@ describe('loadSettings', () => {
   it('merges saved JSON and coerces temperature/depth', () => {
     sessionStorage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({ api: 'https://api.example', temperature: '3', extra: true }),
+      JSON.stringify({ api: 'https://api.example', secret: 'sk', model: 'm', temperature: '3', extra: true }),
     )
-    const loaded = loadSettings({ model: 'm', temperature: 0.1, depth: 9 })
-    expect(loaded.api).toBe('https://api.example')
-    expect(loaded.model).toBe('m')
+    const loaded = loadSettings({ temperature: 0.1, depth: 9 })
+    expect(loaded.api).toBeUndefined()
+    expect(loaded.secret).toBeUndefined()
+    expect(loaded.model).toBeUndefined()
     expect(loaded.temperature).toBe(3)
     expect(loaded.depth).toBe(9)
     expect(loaded.extra).toBe(true)
@@ -67,7 +70,7 @@ describe('loadSettings', () => {
 
   it('returns a copy of defaults when JSON is damaged', () => {
     sessionStorage.setItem(SETTINGS_KEY, '{not-json')
-    const defaults = { api: 'fallback' }
+    const defaults = { language: 'fallback' }
     const loaded = loadSettings(defaults)
     expect(loaded).toEqual(defaults)
     expect(loaded).not.toBe(defaults)
@@ -77,11 +80,41 @@ describe('loadSettings', () => {
 
 describe('saveSettings', () => {
   it('writes SETTINGS_KEY with normalized numbers', () => {
-    saveSettings({ api: 'a', temperature: '1.5', depth: '4' })
+    saveSettings({ api: 'a', secret: 's', model: 'm', temperature: '1.5', depth: '4' })
     const saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY))
-    expect(saved.api).toBe('a')
+    expect(saved.api).toBeUndefined()
+    expect(saved.secret).toBeUndefined()
+    expect(saved.model).toBeUndefined()
     expect(saved.temperature).toBe(1.5)
     expect(saved.depth).toBe(4)
+  })
+
+  it('persists SimpleChat key only when chatRememberKey is true', () => {
+    saveSettings({
+      chatApiBaseUrl: 'https://api.example/v1',
+      chatApiKey: 'sk-secret',
+      chatModel: 'm1',
+      chatRememberKey: true,
+      temperature: 0.5,
+      depth: 2,
+    })
+    let saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY))
+    expect(saved.chatApiKey).toBe('sk-secret')
+    expect(saved.chatRememberKey).toBe(true)
+    expect(saved.chatApiBaseUrl).toBe('https://api.example/v1')
+    expect(saved.chatModel).toBe('m1')
+
+    saveSettings({
+      chatApiBaseUrl: 'https://api.example/v1',
+      chatApiKey: 'sk-secret',
+      chatModel: 'm1',
+      chatRememberKey: false,
+      temperature: 0.5,
+      depth: 2,
+    })
+    saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY))
+    expect(saved.chatApiKey).toBeUndefined()
+    expect(saved.chatRememberKey).toBe(false)
   })
 
   it('uses 0.7 / 3 when numbers are missing', () => {
@@ -96,7 +129,7 @@ describe('saveSettings', () => {
     vi.spyOn(window.sessionStorage.__proto__, 'setItem').mockImplementation(() => {
       throw boom
     })
-    expect(() => saveSettings({ api: 'x' })).toThrow(boom)
+    expect(() => saveSettings({ language: 'zh-CN' })).toThrow(boom)
     expect(console.error).toHaveBeenCalled()
   })
 })
@@ -210,5 +243,104 @@ describe('pending editor action', () => {
     })
     setPendingEditorAction({ type: 'create' })
     expect(console.warn).toHaveBeenCalled()
+  })
+})
+
+
+describe('extension storage helpers', () => {
+  it('reports non-extension context by default', () => {
+    expect(isExtensionContext()).toBe(false)
+  })
+
+  it('hydrateFromChromeStorage is a no-op outside extension', async () => {
+    await expect(hydrateFromChromeStorage()).resolves.toBeUndefined()
+  })
+
+  it('uses chrome.storage.local when extension context is present', async () => {
+    const store = {}
+    vi.stubGlobal('chrome', {
+      runtime: { id: 'ext-id' },
+      storage: {
+        local: {
+          get: vi.fn(async (keys) => {
+            const out = {}
+            for (const k of keys) {
+              if (store[k] != null) out[k] = store[k]
+            }
+            return out
+          }),
+          set: vi.fn(async (obj) => { Object.assign(store, obj) }),
+          remove: vi.fn(async (key) => { delete store[key] }),
+        },
+      },
+    })
+    expect(isExtensionContext()).toBe(true)
+    saveSettings({ language: 'en-US', depth: 2 })
+    expect(store[SETTINGS_KEY]).toBeTruthy()
+    store[SETTINGS_KEY] = JSON.stringify({ language: 'zh-CN', depth: 3 })
+    await hydrateFromChromeStorage()
+    const loaded = loadSettings({ language: 'en-US', depth: 1 })
+    expect(loaded.language).toBe('zh-CN')
+    expect(loaded.depth).toBe(3)
+    vi.unstubAllGlobals()
+  })
+})
+
+
+describe('extension storage error paths', () => {
+  it('warns when chrome.storage set/remove/get throw', async () => {
+    vi.stubGlobal('chrome', {
+      runtime: { id: 'ext-id' },
+      storage: {
+        local: {
+          get: vi.fn(async () => { throw new Error('get fail') }),
+          set: vi.fn(() => { throw new Error('set fail') }),
+          remove: vi.fn(() => { throw new Error('remove fail') }),
+        },
+      },
+    })
+    expect(isExtensionContext()).toBe(true)
+    saveSettings({ language: 'en-US' })
+    expect(console.warn).toHaveBeenCalled()
+    setPendingEditorAction(null)
+    await hydrateFromChromeStorage()
+    expect(console.warn).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('isExtensionContext returns false when chrome access throws', () => {
+    vi.stubGlobal('chrome', {
+      get runtime() {
+        throw new Error('denied')
+      },
+    })
+    expect(isExtensionContext()).toBe(false)
+    vi.unstubAllGlobals()
+  })
+})
+
+
+describe('extension storage removeWeb / consume nested failures', () => {
+  it('swallows removeWeb failures and nested consume remove failures', async () => {
+    const store = {}
+    vi.stubGlobal('chrome', {
+      runtime: { id: 'ext-id' },
+      storage: {
+        local: {
+          get: vi.fn(async () => ({})),
+          set: vi.fn(async (obj) => Object.assign(store, obj)),
+          remove: vi.fn(async (key) => { delete store[key] }),
+        },
+      },
+    })
+    const proto = window.sessionStorage.__proto__
+    vi.spyOn(proto, 'removeItem').mockImplementation(() => {
+      throw new Error('remove web fail')
+    })
+    setPendingEditorAction(null)
+    sessionStorage.setItem(PENDING_EDITOR_KEY, '{bad')
+    // force readRaw path via memory empty + web throw on remove during consume
+    expect(consumePendingEditorAction()).toBeNull()
+    vi.unstubAllGlobals()
   })
 })

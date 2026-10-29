@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 .DS_Store
 dist
+dist-extension
 dist-ssr
 coverage
 *.local
@@ -36,3 +37,4 @@ coverage
 __screenshots__/
 .env.local
 **.zip
+.yarn

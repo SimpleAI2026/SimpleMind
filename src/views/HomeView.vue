@@ -61,26 +61,114 @@
           </button>
         </div>
       </main>
+
+      <footer class="home-ai-footer">
+        <div class="home-ai-footer-left">
+          <span class="builtin-ai-dot" :class="'status-' + aiStatus"></span>
+          <span>{{ builtinAiStatusLabel }}</span>
+          <span v-if="aiStatus === 'downloading'">
+            ({{ Math.round((aiProgress || 0) * 100) }}%)
+          </span>
+        </div>
+        <div class="builtin-ai-actions">
+          <a-button size="small" @click="refreshAiAvailability" :loading="aiChecking">
+            {{ t('builtinAIRecheck') }}
+          </a-button>
+          <a-button
+            v-if="aiStatus === 'downloadable' || aiStatus === 'downloading'"
+            size="small"
+            type="primary"
+            @click="ensureAiReady"
+          >
+            {{ t('builtinAIDownload') }}
+          </a-button>
+        </div>
+      </footer>
     </div>
   </a-config-provider>
 </template>
 
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import {
   Select as ASelect,
   SelectOption as ASelectOption,
   ConfigProvider as AConfigProvider,
+  Button as AButton,
 } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { languageOptions, messages, getTemplateCards } from '../const.js'
 import { setPendingEditorAction } from '../storage.js'
 import { useAppSettings } from '../composables/useAppSettings.js'
+import { checkBuiltinAvailability, builtinPromptAI } from '../ai/generateText.js'
 
 const router = useRouter()
 const { settings, themeList, homeCssVars, persist, DEFAULT_CANVAS_BACKGROUND } = useAppSettings()
 const templateCards = getTemplateCards()
 
 const t = (key) => messages[settings.value.language]?.[key] ?? key
+
+const aiStatus = ref('unknown')
+const aiProgress = ref(0)
+const aiChecking = ref(false)
+const isExtension = ref(typeof chrome !== 'undefined' && !!chrome?.runtime?.id)
+
+const builtinAiStatusLabel = computed(() => {
+  switch (aiStatus.value) {
+    case 'available':
+      return t('builtinAIAvailable')
+    case 'downloadable':
+      return t('builtinAIDownloadable')
+    case 'downloading':
+      return t('builtinAIDownloading')
+    case 'unavailable':
+      return t('builtinAIUnavailable')
+    default:
+      return t('builtinAIChecking')
+  }
+})
+
+const refreshAiAvailability = async () => {
+  aiChecking.value = true
+  try {
+    const result = await checkBuiltinAvailability()
+    aiStatus.value = result.status
+    if (result.status === 'available') aiProgress.value = 1
+  } catch {
+    aiStatus.value = 'unavailable'
+  } finally {
+    aiChecking.value = false
+  }
+}
+
+const ensureAiReady = async () => {
+  await refreshAiAvailability()
+  if (aiStatus.value === 'available') return true
+  if (aiStatus.value === 'downloadable' || aiStatus.value === 'downloading') {
+    aiStatus.value = 'downloading'
+    aiProgress.value = 0
+    try {
+      await builtinPromptAI.ensureSession({
+        onDownloadProgress: (loaded) => {
+          aiProgress.value = loaded
+          aiStatus.value = 'downloading'
+        },
+      })
+      aiStatus.value = 'available'
+      aiProgress.value = 1
+      return true
+    } catch {
+      aiStatus.value = 'unavailable'
+      return false
+    }
+  }
+  return false
+}
+
+
+onMounted(() => {
+  refreshAiAvailability()
+})
 
 const openCreate = () => {
   persist()

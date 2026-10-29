@@ -64,8 +64,43 @@
         </div>
     </div>
     
-    <div id="mindMapContainer"></div>
+    <div id="mindMapContainer" :class="{ 'with-ai-panel': aiPanelOpen }"></div>
 
+    <button
+        v-if="!aiPanelOpen"
+        type="button"
+        class="ai-panel-edge-toggle"
+        :title="t('aiPanel')"
+        @click="aiPanelOpen = true"
+    >
+        <span class="ai-panel-edge-dot" :class="'status-' + aiStatus"></span>
+        {{ t('aiPanel') }}
+    </button>
+
+    <aside
+        v-if="aiPanelOpen"
+        class="ai-side-panel ai-side-panel--chat"
+        aria-label="SimpleChat"
+        :style="{ '--ai-panel-width': aiPanelWidthPx }"
+    >
+        <div class="ai-side-panel-chat">
+            <SimpleChatSidebar
+                ref="chatSidebarRef"
+                :key="chatStorageKey"
+                :open="true"
+                layout="panel"
+                position="right"
+                :config="simpleChatConfig"
+                :tools="mindChatTools"
+                :storage-key="chatStorageKey"
+                :theme-style="simpleChatThemeStyle"
+                :theme-css="simpleChatThemeCss"
+                @close="aiPanelOpen = false"
+                @update:open="(v) => { if (!v) aiPanelOpen = false }"
+                @resize="onChatPanelResize"
+            />
+        </div>
+    </aside>
 
     <div
         v-if="show"
@@ -109,30 +144,10 @@
                     </label>
 
                     <label class="field-row">
-                        <span class="field-label">{{ t('api') }}：</span>
-                        <a-input class="field-control" name="api" v-model:value="settings.api" :placeholder="t('apiPlaceholder')" />
-                    </label>
-
-                    <label class="field-row">
-                        <span class="field-label">{{ t('secret') }}：</span>
-                        <a-input class="field-control" name="secret" v-model:value="settings.secret" :placeholder="t('secretPlaceholder')" />
-                    </label>
-
-                    <div class="field-row">
-                        <span class="field-label">{{ t('model') }}：</span>
-                        <a-select
-                            class="field-control"
-                            v-model:value="settings.model"
-                            :options="modelOptions"
-                            :placeholder="t('modelPlaceholder')"
-                            show-search
-                        />
-                    </div>
-
-                    <label class="field-row">
                         <span class="field-label">{{ t('childCountRange') }}：</span>
-                        <a-input-number class="field-control-narrow" name="depth" v-model:value="settings.depth" :min="1" :max="20" :step="1" />
+                        <a-input-number class="field-control-narrow" name="depth" v-model:value="settings.depth" :min="1" :max="4" :step="1" />
                     </label>
+
                 </div>
 
                 <div class="settings-section">
@@ -185,6 +200,18 @@
                                 <span class="layout-btn-icon" v-html="l.icon"></span>
                                 {{ l.name }}
                             </a-button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="field-row field-row-top">
+                        <span class="field-label">{{ t('simpleChat') }}：</span>
+                        <div class="field-control builtin-ai-panel">
+                            <p class="builtin-ai-hint">{{ t('simpleChatHint') }}</p>
+                            <p class="builtin-ai-hint">{{ t('simpleChatCloudHint') }}</p>
+                            <p class="builtin-ai-hint">{{ t('builtinAIInChatHint') }}</p>
+                            <p class="builtin-ai-hint" style="margin-top: 6px;">{{ t('simpleChatAutoPromptHint') }}</p>
                         </div>
                     </div>
                 </div>
@@ -344,7 +371,10 @@ import {
     TabPane as ATabPane,
     Upload as AUpload,
     ConfigProvider as AConfigProvider,
+    Progress as AProgress,
+    Checkbox as ACheckbox,
 } from 'ant-design-vue'
+const AInputPassword = AInput.Password
 import {
     MinusOutlined,
     PlusOutlined,
@@ -361,13 +391,16 @@ import {
     AppstoreOutlined,
     LoadingOutlined,
 } from '@ant-design/icons-vue'
-import { ref, shallowRef, onMounted, onUnmounted, h, watch } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, h, watch, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MindMap from "simple-mind-map"
-import { showError, exportMindMap, importFileToMindMap, ENV_API, ENV_SECRET, ENV_MODEL, switchTextNoteMode, getThemeList, buildCardHtml, debugLog } from '../utils.js'
-import { buildPrompt as libBuildPrompt, extractIdeas as libExtractIdeas, requestCompletions, expandPrompt } from '../libai.js'
+import { showError, exportMindMap, importFileToMindMap, switchTextNoteMode, getThemeList, buildCardHtml, debugLog } from '../utils.js'
+import { buildPrompt as libBuildPrompt, extractIdeas as libExtractIdeas, expandPrompt, NANO_MAX_COUNT } from '../libai.js'
+import { SimpleChatSidebar } from '../components/SimpleChatSidebar.js'
+import { loadSidebarWidth, clampSidebarWidth, SC_WIDTH_DEFAULT } from '../vendor/simplechat/index.js'
+import { createMindChatTools, buildAutoChatSystemPrompt } from '../ai/simpleChatTools.js'
 import { loadSettings as loadSettingsFromStorage, saveSettings as saveSettingsToStorage, loadMindMapData, saveMindMapData, scheduleMindMapSave, flushMindMapSave, consumePendingEditorAction } from '../storage.js'
-import { layouts as layoutOptions, languageOptions, messages, fontFamilyOptions, iconList, DEFAULT_MODEL, modelOptions, loadExampleTemplate } from '../const.js'
+import { layouts as layoutOptions, languageOptions, messages, fontFamilyOptions, iconList, loadExampleTemplate, thinkingModels } from '../const.js'
 import { parseFileAsPrompt } from '../parser.js'
 
 const THEME_CONFIG_DEBOUNCE_MS = 120
@@ -416,12 +449,9 @@ const clipboardData = ref(null)      // 剪贴板数据
 
 // 设置状态
 const settings = ref({
-    api: ENV_API || '',
-    secret: ENV_SECRET || '',
-    model: ENV_MODEL || DEFAULT_MODEL,
     temperature: 0.6,
     systemPrompt: '',
-    depth: 5,
+    depth: 3,
     thinkingModel: 'default',
     language: 'zh-CN',
     layout: 'mindMap',
@@ -432,7 +462,301 @@ const settings = ref({
     fontFamily: '微软雅黑, Microsoft YaHei',
     themeRootFillColor: '#00c0b8',
     theme: 'mint',
+    promptLayers: 1,
+    chatApiBaseUrl: 'https://api.siliconflow.cn/v1',
+    chatApiKey: '',
+    chatModel: 'Qwen/Qwen2.5-7B-Instruct',
+    chatRememberKey: false,
 })
+
+// Built-in AI availability (Chrome Prompt API)
+const aiStatus = ref('unknown')
+const aiProgress = ref(0)
+const aiChecking = ref(false)
+const aiPanelOpen = ref(true)
+const aiPanelWidth = ref(typeof loadSidebarWidth === 'function' ? loadSidebarWidth() : SC_WIDTH_DEFAULT)
+const aiPanelWidthPx = computed(() => `${aiPanelWidth.value}px`)
+
+const applyAiPanelWidth = (width, { resizeMap = true } = {}) => {
+    const next = clampSidebarWidth(Number(width) || SC_WIDTH_DEFAULT)
+    aiPanelWidth.value = next
+    try {
+        document.documentElement.style.setProperty('--ai-panel-width', `${next}px`)
+    } catch {}
+    if (resizeMap) {
+        try {
+            mindMapRef.value?.resize?.()
+            window.dispatchEvent(new Event('resize'))
+        } catch {}
+    }
+}
+
+const onChatPanelResize = (payload) => {
+    const w = payload?.width ?? payload?.detail?.width
+    applyAiPanelWidth(w)
+}
+
+
+// SimpleChat (cloud, optional) — toolbar「AI生成」opens this panel
+const mapChatId = ref('default')
+const chatStorageKey = computed(() => `simplemind-chat-${mapChatId.value || 'default'}`)
+
+const selectedNodeForChat = computed(() => {
+    const nodes = activeNodes.value || []
+    if (nodes.length) return nodes[0]
+    return currentNode.value || null
+})
+
+const autoChatSystemPrompt = computed(() => {
+    const node = selectedNodeForChat.value
+    const tm = thinkingModels.find((m) => m.value === settings.value.thinkingModel) || thinkingModels[0]
+    return buildAutoChatSystemPrompt({
+        knowledgeBase: settings.value.systemPrompt,
+        language: settings.value.language,
+        thinkingModelLabel: tm?.label,
+        thinkingModelDescription: tm?.description,
+        selectedText: getNodeText(node),
+        selectedHint: getNodeSystemPrompt(node),
+    })
+})
+
+const chatSidebarRef = ref(null)
+
+/** Chat ⚙ owns apiBaseUrl/apiKey/model (localStorage). Host only injects auto systemPrompt + temperature. */
+const simpleChatConfig = computed(() => ({
+    systemPrompt: autoChatSystemPrompt.value,
+    temperature: settings.value.temperature,
+}))
+
+
+/** Map SimpleMind theme tokens → SimpleChat --sc-* (host inline style overrides :host defaults). */
+const simpleChatThemeStyle = computed(() => {
+    const target = themeList.find((item) => item.value === settings.value.theme)
+    const theme = target?.theme || {}
+    const dark = !!target?.dark
+    let primary = settings.value.themeRootFillColor || theme?.root?.fillColor || '#00c0b8'
+    if (primary === '#fff' || primary === '#ffffff' || primary === 'rgb(255, 255, 255)') {
+        primary = '#00c0b8'
+    }
+    const panelBg = dark ? '#0f172a' : '#ffffff'
+    const fg = dark ? '#f5f5f5' : '#1f2937'
+    const muted = dark ? 'rgba(255,255,255,0.65)' : '#737373'
+    const mutedBg = dark ? 'rgba(255,255,255,0.08)' : (settings.value.backgroundColor || theme.backgroundColor || '#f5f5f5')
+    const border = dark ? 'rgba(255,255,255,0.14)' : '#e5e5e5'
+    return {
+        '--sc-background': panelBg,
+        '--sc-foreground': fg,
+        '--sc-muted': muted,
+        '--sc-muted-bg': mutedBg,
+        '--sc-border': border,
+        '--sc-primary': primary,
+        '--sc-primary-fg': '#fafafa',
+        '--sc-assistant-bg': panelBg,
+        '--sc-assistant-border': border,
+        '--sc-ring': primary,
+    }
+})
+
+const simpleChatThemeCss = computed(() => {
+    const s = simpleChatThemeStyle.value
+    const lines = Object.entries(s).map(([k, v]) => `  ${k}: ${v};`)
+    return [':host {', ...lines, '}'].join('\n')
+})
+const mindChatTools = createMindChatTools({
+    getMindMap: () => mindMapRef.value,
+    getActiveNodes: () => {
+        const fromActive = activeNodes.value || []
+        if (fromActive.length) return fromActive
+        if (currentNode.value) return [currentNode.value]
+        return []
+    },
+})
+const refreshMapChatId = () => {
+    try {
+        const data = mindMapRef.value?.getData?.(false)
+        const uid = data?.data?.uid
+        mapChatId.value = uid ? String(uid) : 'default'
+    } catch {
+        mapChatId.value = 'default'
+    }
+}
+
+
+const builtinAiStatusLabel = computed(() => {
+    switch (aiStatus.value) {
+        case 'available':
+            return t('builtinAIAvailable')
+        case 'downloadable':
+            return t('builtinAIDownloadable')
+        case 'downloading':
+            return t('builtinAIDownloading')
+        case 'unavailable':
+            return t('builtinAIUnavailable')
+        default:
+            return t('builtinAIChecking')
+    }
+})
+
+const refreshAiAvailability = async () => {
+    aiChecking.value = true
+    try {
+        const { checkBuiltinAvailability } = await import('../ai/generateText.js')
+        const result = await checkBuiltinAvailability()
+        aiStatus.value = result.status
+        if (result.status === 'available') aiProgress.value = 1
+        return result
+    } catch (err) {
+        aiStatus.value = 'unavailable'
+        return { status: 'unavailable', reason: err?.message || String(err) }
+    } finally {
+        aiChecking.value = false
+    }
+}
+
+const ensureAiReady = async () => {
+    await refreshAiAvailability()
+    if (aiStatus.value === 'available') return true
+    if (aiStatus.value === 'downloadable' || aiStatus.value === 'downloading') {
+        aiStatus.value = 'downloading'
+        aiProgress.value = 0
+        try {
+            const { builtinPromptAI } = await import('../ai/generateText.js')
+            await builtinPromptAI.ensureSession({
+                onDownloadProgress: (loaded) => {
+                    aiProgress.value = loaded
+                    aiStatus.value = 'downloading'
+                },
+            })
+            aiStatus.value = 'available'
+            aiProgress.value = 1
+            return true
+        } catch (err) {
+            aiStatus.value = 'unavailable'
+            console.error(err)
+            return false
+        }
+    }
+    return false
+}
+
+// —— Built-in AI panel injected into SimpleChat ⚙ (host settings slot) ——
+let builtinAiHostEl = null
+
+const migrateHostChatSettingsOnce = (storageKey) => {
+    try {
+        const lsKey = `${storageKey || 'simplechat'}:settings`
+        if (localStorage.getItem(lsKey)) return
+        const base = String(settings.value.chatApiBaseUrl || '').trim().replace(/\/+$/, '')
+        const model = String(settings.value.chatModel || '').trim()
+        const apiKey = String(settings.value.chatApiKey || '').trim()
+        const rememberKey = !!settings.value.chatRememberKey
+        if (!base && !model && !apiKey) return
+        const payload = {
+            apiBaseUrl: base,
+            model,
+            rememberKey,
+            systemPrompt: '',
+        }
+        if (rememberKey && apiKey) payload.apiKey = apiKey
+        localStorage.setItem(lsKey, JSON.stringify(payload))
+    } catch (e) {
+        console.warn('migrateHostChatSettingsOnce failed:', e)
+    }
+}
+
+const syncBuiltinAiHostPanel = () => {
+    if (!builtinAiHostEl) return
+    const status = aiStatus.value || 'unknown'
+    const dot = builtinAiHostEl.querySelector('[data-ai-dot]')
+    const label = builtinAiHostEl.querySelector('[data-ai-label]')
+    const hint = builtinAiHostEl.querySelector('[data-ai-hint]')
+    const progress = builtinAiHostEl.querySelector('[data-ai-progress]')
+    const recheck = builtinAiHostEl.querySelector('[data-ai-recheck]')
+    const download = builtinAiHostEl.querySelector('[data-ai-download]')
+    const title = builtinAiHostEl.querySelector('[data-ai-title]')
+    if (title) title.textContent = t('builtinAI')
+    if (dot) {
+        dot.className = `sc-builtin-ai-dot status-${status}`
+    }
+    if (label) label.textContent = builtinAiStatusLabel.value
+    if (hint) hint.textContent = t('builtinAIHint')
+    if (progress) {
+        if (status === 'downloading') {
+            progress.hidden = false
+            progress.textContent = `${Math.round((aiProgress.value || 0) * 100)}%`
+        } else {
+            progress.hidden = true
+        }
+    }
+    if (recheck) {
+        recheck.textContent = t('builtinAIRecheck')
+        recheck.disabled = !!aiChecking.value
+    }
+    if (download) {
+        const show = status === 'downloadable' || status === 'downloading'
+        download.hidden = !show
+        download.textContent = t('builtinAIDownload')
+        download.disabled = status === 'downloading'
+    }
+}
+
+const ensureBuiltinAiHostPanel = () => {
+    if (!builtinAiHostEl) {
+        const root = document.createElement('div')
+        root.className = 'sc-builtin-ai'
+        root.innerHTML = `
+            <p class="sc-builtin-ai-title" data-ai-title></p>
+            <div class="sc-builtin-ai-status">
+                <span class="sc-builtin-ai-dot" data-ai-dot aria-hidden="true"></span>
+                <span data-ai-label></span>
+            </div>
+            <div class="sc-builtin-ai-progress" data-ai-progress hidden></div>
+            <p class="sc-builtin-ai-hint" data-ai-hint></p>
+            <div class="sc-builtin-ai-actions">
+                <button type="button" class="sc-btn-ghost" data-ai-recheck></button>
+                <button type="button" class="sc-btn-primary" data-ai-download hidden></button>
+            </div>
+        `
+        root.querySelector('[data-ai-recheck]')?.addEventListener('click', () => {
+            void refreshAiAvailability()
+        })
+        root.querySelector('[data-ai-download]')?.addEventListener('click', () => {
+            void ensureAiReady()
+        })
+        builtinAiHostEl = root
+    }
+    syncBuiltinAiHostPanel()
+    return builtinAiHostEl
+}
+
+const mountBuiltinAiIntoChat = async () => {
+    await nextTick()
+    let sidebar = chatSidebarRef.value
+    if (!sidebar) {
+        await nextTick()
+        sidebar = chatSidebarRef.value
+    }
+    if (!sidebar) return
+    migrateHostChatSettingsOnce(chatStorageKey.value)
+    const el = typeof sidebar.getElement === 'function' ? sidebar.getElement() : null
+    if (!el || typeof el.setHostSettingsSlot !== 'function') return
+    el.setHostSettingsSlot(ensureBuiltinAiHostPanel())
+}
+
+watch(
+    [aiPanelOpen, chatStorageKey],
+    async ([open]) => {
+        if (!open) return
+        await mountBuiltinAiIntoChat()
+    },
+    { flush: 'post' },
+)
+
+watch(
+    [aiStatus, aiProgress, aiChecking, () => settings.value.language],
+    () => syncBuiltinAiHostPanel(),
+)
+
 
 // -----------------------------------------------------------------------------
 // 2. 工具函数 (Helper Functions)
@@ -516,11 +840,10 @@ const validateTargetNode = () => {
 const loadSettings = () => {
     try {
         settings.value = loadSettingsFromStorage(settings.value)
-        const allowed = new Set(modelOptions.map((option) => option.value))
-        if (ENV_MODEL) allowed.add(ENV_MODEL)
-        if (!allowed.has(settings.value.model)) {
-            settings.value.model = ENV_MODEL || DEFAULT_MODEL
-        }
+        // Cap depth for on-device Nano
+        const d = Number(settings.value.depth)
+        settings.value.depth = Number.isFinite(d) ? Math.max(1, Math.min(NANO_MAX_COUNT, d)) : 3
+        if (settings.value.promptLayers !== 2) settings.value.promptLayers = 1
     } catch (e) {
         console.warn('加载设置失败：', e)
     }
@@ -600,15 +923,21 @@ const isExpanding = ref(false)
 
 const expandSystemPrompt = async () => {
     if (isExpanding.value) return
-    
+
     isExpanding.value = true
     try {
+        const ready = await ensureAiReady()
+        if (!ready) {
+            showError(t('builtinAIUnavailable'))
+            return
+        }
         const content = await expandPrompt({
             currentPrompt: settings.value.systemPrompt,
-            api: settings.value.api,
-            secret: settings.value.secret,
-            model: settings.value.model,
-            language: settings.value.language
+            language: settings.value.language,
+            onDownloadProgress: (loaded) => {
+                aiProgress.value = loaded
+                aiStatus.value = 'downloading'
+            },
         })
 
         if (content) {
@@ -616,7 +945,7 @@ const expandSystemPrompt = async () => {
         }
     } catch (e) {
         console.error(e)
-        showError('AI 请求失败: ' + (e.message || e))
+        showError(t('aiGenerateFailed').replace('{msg}', e?.message || String(e)))
     } finally {
         isExpanding.value = false
     }
@@ -778,6 +1107,7 @@ const newMap = async (tpl) => {
         }
         mindMapRef.value.setData(data)
         mindMapRef.value.view.reset()
+        refreshMapChatId()
     } catch (e) {
         showError(t('templateImportFailed'), String(e?.message || e))
     }
@@ -811,7 +1141,7 @@ const buildCurrentAiPrompt = () => {
     const baseNode = activeNodes.value?.[0]
     const baseText = getNodeText(baseNode)
     const nodeSystemPrompt = getNodeSystemPrompt(baseNode)
-    const count = Math.max(1, Math.min(20, Number(settings.value.depth) || 5))
+    const count = Math.max(1, Math.min(NANO_MAX_COUNT, Number(settings.value.depth) || 3))
     return {
         baseText,
         count,
@@ -825,15 +1155,24 @@ const buildCurrentAiPrompt = () => {
     }
 }
 
-const aiGenerate = async () => {
-    if (isGenerating.value) return
+/** Toolbar「AI生成」: open / focus SimpleChat sidebar (primary UX). */
+const aiGenerate = () => {
+    aiPanelOpen.value = true
+}
 
-    if (!settings.value.api || settings.value.api.trim().length === 0) {
-        showError('请打开设置，配置API Base')
-        return
-    }
+/** Secondary: open BuiltinPromptAI prompt modal (kept for confirmAiGenerate flow). */
+const openBuiltinAiPrompt = async () => {
+    if (isGenerating.value) return
+    aiPanelOpen.value = true
+
     if (!mindMapRef.value) {
         showError(t('createMapFirst'))
+        return
+    }
+
+    const avail = await refreshAiAvailability()
+    if (aiStatus.value === 'unavailable') {
+        showError(t('builtinAIUnavailable'))
         return
     }
 
@@ -868,23 +1207,52 @@ const confirmAiGenerate = async () => {
         return
     }
 
-    const count = Math.max(1, Math.min(20, Number(settings.value.depth) || 5))
     isGenerating.value = true
     debugLog('AI Prompt:', prompt)
     try {
-        const { data } = await requestCompletions({
-            api: settings.value.api,
-            secret: settings.value.secret,
-            model: settings.value.model || DEFAULT_MODEL,
-            temperature: settings.value.temperature,
-            prompt,
+        const ready = await ensureAiReady()
+        if (!ready) {
+            showError(t('builtinAIUnavailable'))
+            return
+        }
+
+        const { generateText } = await import('../ai/generateText.js')
+        let text = await generateText(prompt, {
+            onDownloadProgress: (loaded) => {
+                aiProgress.value = loaded
+                aiStatus.value = 'downloading'
+            },
         })
 
-        const ideas = libExtractIdeas(data, count)
+        let ideas
+        try {
+            ideas = libExtractIdeas(text)
+        } catch (parseErr) {
+            // Nano fallback: retry once with forced 1-layer / smaller count
+            if (settings.value.promptLayers !== 1) {
+                settings.value.promptLayers = 1
+            }
+            const retryPrompt = libBuildPrompt(
+                getNodeText(activeNodes.value?.[0]),
+                2,
+                getNodeSystemPrompt(activeNodes.value?.[0]),
+                settings.value.systemPrompt,
+                { ...settings.value, promptLayers: 1 },
+            )
+            text = await generateText(retryPrompt, {
+                onDownloadProgress: (loaded) => {
+                    aiProgress.value = loaded
+                    aiStatus.value = 'downloading'
+                },
+            })
+            ideas = libExtractIdeas(text)
+        }
+
         debugLog('解析到子节点：', ideas?.length)
-        if (ideas.length) {
+        if (ideas?.length) {
             mindMapRef.value.execCommand('INSERT_MULTI_CHILD_NODE', [], ideas)
             aiPromptOpen.value = false
+            aiStatus.value = 'available'
         } else {
             showError(t('aiNoContent'))
         }
@@ -901,8 +1269,20 @@ const confirmAiGenerate = async () => {
 // 9. 生命周期 (Lifecycle)
 // -----------------------------------------------------------------------------
 
+
+watch(aiPanelOpen, (open) => {
+    if (open) {
+        applyAiPanelWidth(aiPanelWidth.value || loadSidebarWidth())
+    }
+})
+
 onMounted(async () => {
     loadSettings()
+    applyAiPanelWidth(loadSidebarWidth(), { resizeMap: false })
+    refreshAiAvailability()
+    if (aiPanelOpen.value) {
+        void mountBuiltinAiIntoChat()
+    }
     const blankData = {
         data: { text: '主题' },
         children: []
@@ -976,6 +1356,8 @@ onMounted(async () => {
     } catch {
         applyZoom(1)
     }
+
+    refreshMapChatId()
 
     mindMap.on('node_active', (node, activeNodeList) => {
         activeNodes.value = activeNodeList || (node ? [node] : [])

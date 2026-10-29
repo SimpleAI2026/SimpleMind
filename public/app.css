@@ -550,3 +550,183 @@ body {
         display: none !important;
     }
 }
+
+/* Built-in AI status (Settings + Home footer) */
+.builtin-ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.builtin-ai-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.builtin-ai-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9ca3af;
+  flex-shrink: 0;
+}
+.builtin-ai-dot.status-available { background: #22c55e; }
+.builtin-ai-dot.status-downloadable { background: #f59e0b; }
+.builtin-ai-dot.status-downloading { background: #3b82f6; }
+.builtin-ai-dot.status-unavailable { background: #ef4444; }
+.builtin-ai-hint {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+.builtin-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.home-ai-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 28px 24px;
+  font-size: 13px;
+  color: var(--home-muted, rgba(31, 41, 55, 0.65));
+}
+.home-ai-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* Editor right AI panel (in-page; main app is full tab) */
+#mindMapContainer.with-ai-panel {
+  max-width: calc(100% - var(--ai-panel-width, 400px));
+}
+
+.ai-panel-edge-toggle {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 110;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 12px 8px;
+  border: 1px solid var(--chrome-border);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: var(--chrome-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--chrome-shadow);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-panel-edge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9ca3af;
+  flex-shrink: 0;
+}
+.ai-panel-edge-dot.status-available { background: #22c55e; }
+.ai-panel-edge-dot.status-downloadable { background: #f59e0b; }
+.ai-panel-edge-dot.status-downloading { background: #3b82f6; }
+.ai-panel-edge-dot.status-unavailable { background: #ef4444; }
+
+.ai-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(var(--ai-panel-width, 400px), 92vw);
+  height: 100vh;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border-left: none;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
+  color: inherit;
+  /* Clip panel chrome only; do not rely on this to hide SimpleChat header actions */
+  overflow: hidden;
+  padding: 0;
+}
+
+.ai-side-panel--chat {
+  /* SimpleChat (layout=panel) fills the host drawer */
+  overflow: hidden;
+}
+
+.ai-side-panel-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.ai-side-panel-chat simple-chat,
+.ai-side-panel-chat > * {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  display: block;
+  /* Ensure host contrast tokens reach shadow :host for header icon color */
+  color: var(--sc-foreground, inherit);
+}
+
+.ai-side-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--chrome-divider);
+}
+
+.ai-side-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ai-side-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.ai-side-panel-generate {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--chrome-divider);
+}
+
+@media (max-width: 720px) {
+  #mindMapContainer.with-ai-panel {
+    max-width: 100%;
+  }
+  .ai-side-panel {
+    width: min(100vw, var(--ai-panel-width, 400px));
+  }
+}
