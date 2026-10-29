@@ -88,5 +88,14 @@
   "builtinAIDownload": "下载 / 启用模型",
   "openFullPage": "全页打开",
   "aiPanel": "AI 面板",
-  "aiPanelCollapse": "收起"
+  "aiPanelCollapse": "收起",
+  "simpleChat": "SimpleChat",
+  "simpleChatHint": "可选云端聊天（OpenAI 兼容）。工具栏「AI生成」打开右侧 SimpleChat；也可在聊天右上角 ⚙ 配置 Base URL / Key / Model / 主题。工具栏内置 AI 仍走 Chrome Built-in AI。",
+  "simpleChatApiBase": "API Base URL",
+  "simpleChatApiKey": "API Key",
+  "simpleChatModel": "模型",
+  "simpleChatRememberKey": "记住 Key（写入本机存储，有 XSS 风险）",
+  "simpleChatSystemPrompt": "聊天系统提示",
+  "simpleChatWarn": "API Key 仅建议个人/内网使用；生产请用同源代理。聊天内设置会写入本机 localStorage（有 XSS 风险）。",
+  "simpleChatAutoPromptHint": "系统提示会自动注入：知识库（设置→系统提示）+ 当前选中节点 + 思考模型 + 工具说明，无需在此填写。"
 }

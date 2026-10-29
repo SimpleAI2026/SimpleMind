@@ -77,53 +77,21 @@
         {{ t('aiPanel') }}
     </button>
 
-    <aside v-if="aiPanelOpen" class="ai-side-panel" aria-label="AI">
-        <div class="ai-side-panel-header">
-            <div class="ai-side-panel-title">
-                <span class="builtin-ai-dot" :class="'status-' + aiStatus"></span>
-                <span>{{ t('aiPanel') }}</span>
-            </div>
-            <a-button size="small" type="text" @click="aiPanelOpen = false">{{ t('aiPanelCollapse') }}</a-button>
-        </div>
-
-        <div class="ai-side-panel-body">
-            <div class="builtin-ai-status">
-                <span>{{ builtinAiStatusLabel }}</span>
-            </div>
-            <a-progress
-                v-if="aiStatus === 'downloading'"
-                :percent="Math.round((aiProgress || 0) * 100)"
-                size="small"
-                :show-info="true"
+    <aside v-if="aiPanelOpen" class="ai-side-panel ai-side-panel--chat" aria-label="SimpleChat">
+        <div class="ai-side-panel-chat">
+            <SimpleChatSidebar
+                :key="chatStorageKey"
+                :open="true"
+                layout="panel"
+                position="right"
+                :config="simpleChatConfig"
+                :tools="mindChatTools"
+                :storage-key="chatStorageKey"
+                :theme-style="simpleChatThemeStyle"
+                :theme-css="simpleChatThemeCss"
+                @close="aiPanelOpen = false"
+                @update:open="(v) => { if (!v) aiPanelOpen = false }"
             />
-            <p class="builtin-ai-hint">{{ t('builtinAIHint') }}</p>
-            <div class="builtin-ai-actions">
-                <a-button size="small" @click="refreshAiAvailability" :loading="aiChecking">
-                    {{ t('builtinAIRecheck') }}
-                </a-button>
-                <a-button
-                    v-if="aiStatus === 'downloadable' || aiStatus === 'downloading'"
-                    size="small"
-                    type="primary"
-                    @click="ensureAiReady"
-                    :loading="aiStatus === 'downloading'"
-                >
-                    {{ t('builtinAIDownload') }}
-                </a-button>
-            </div>
-
-            <div class="ai-side-panel-generate">
-                <a-button
-                    type="primary"
-                    block
-                    :icon="h(BulbOutlined)"
-                    @click="aiGenerate"
-                    :disabled="isGenerating"
-                    :loading="isGenerating"
-                >
-                    {{ isGenerating ? t('generating') : t('aiGenerate') }}
-                </a-button>
-            </div>
         </div>
     </aside>
 
@@ -206,6 +174,48 @@
                         <span class="field-label">{{ t('childCountRange') }}：</span>
                         <a-input-number class="field-control-narrow" name="depth" v-model:value="settings.depth" :min="1" :max="4" :step="1" />
                     </label>
+
+                    <div class="field-row field-row-top">
+                        <span class="field-label">{{ t('simpleChat') }}：</span>
+                        <div class="field-control builtin-ai-panel">
+                            <p class="builtin-ai-hint">{{ t('simpleChatHint') }}</p>
+                            <label class="field-row" style="margin-top: 8px;">
+                                <span class="field-label">{{ t('simpleChatApiBase') }}</span>
+                                <a-input
+                                    class="field-control"
+                                    v-model:value="settings.chatApiBaseUrl"
+                                    placeholder="https://api.openai.com/v1"
+                                    allow-clear
+                                />
+                            </label>
+                            <label class="field-row">
+                                <span class="field-label">{{ t('simpleChatApiKey') }}</span>
+                                <a-input-password
+                                    class="field-control"
+                                    v-model:value="settings.chatApiKey"
+                                    placeholder="sk-…"
+                                    autocomplete="off"
+                                />
+                            </label>
+                            <label class="field-row">
+                                <a-checkbox v-model:checked="settings.chatRememberKey">
+                                    {{ t('simpleChatRememberKey') }}
+                                </a-checkbox>
+                            </label>
+                            <label class="field-row">
+                                <span class="field-label">{{ t('simpleChatModel') }}</span>
+                                <a-select
+                                    class="field-control"
+                                    v-model:value="settings.chatModel"
+                                    :options="chatModelSelectOptions"
+                                    show-search
+                                    allow-clear
+                                />
+                            </label>
+                            <p class="builtin-ai-hint" style="margin-top: 6px;">{{ t('simpleChatAutoPromptHint') }}</p>
+                            <p class="builtin-ai-hint">{{ t('simpleChatWarn') }}</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="settings-section">
@@ -418,7 +428,9 @@ import {
     Upload as AUpload,
     ConfigProvider as AConfigProvider,
     Progress as AProgress,
+    Checkbox as ACheckbox,
 } from 'ant-design-vue'
+const AInputPassword = AInput.Password
 import {
     MinusOutlined,
     PlusOutlined,
@@ -440,8 +452,10 @@ import { useRouter, useRoute } from 'vue-router'
 import MindMap from "simple-mind-map"
 import { showError, exportMindMap, importFileToMindMap, switchTextNoteMode, getThemeList, buildCardHtml, debugLog } from '../utils.js'
 import { buildPrompt as libBuildPrompt, extractIdeas as libExtractIdeas, expandPrompt, NANO_MAX_COUNT } from '../libai.js'
+import { SimpleChatSidebar } from '@simplechat/vue'
+import { createMindChatTools, buildAutoChatSystemPrompt } from '../ai/simpleChatTools.js'
 import { loadSettings as loadSettingsFromStorage, saveSettings as saveSettingsToStorage, loadMindMapData, saveMindMapData, scheduleMindMapSave, flushMindMapSave, consumePendingEditorAction } from '../storage.js'
-import { layouts as layoutOptions, languageOptions, messages, fontFamilyOptions, iconList, loadExampleTemplate } from '../const.js'
+import { layouts as layoutOptions, languageOptions, messages, fontFamilyOptions, iconList, loadExampleTemplate, modelOptions, thinkingModels } from '../const.js'
 import { parseFileAsPrompt } from '../parser.js'
 
 const THEME_CONFIG_DEBOUNCE_MS = 120
@@ -504,6 +518,10 @@ const settings = ref({
     themeRootFillColor: '#00c0b8',
     theme: 'mint',
     promptLayers: 1,
+    chatApiBaseUrl: 'https://api.siliconflow.cn/v1',
+    chatApiKey: '',
+    chatModel: 'Qwen/Qwen2.5-7B-Instruct',
+    chatRememberKey: false,
 })
 
 // Built-in AI availability (Chrome Prompt API)
@@ -511,6 +529,103 @@ const aiStatus = ref('unknown')
 const aiProgress = ref(0)
 const aiChecking = ref(false)
 const aiPanelOpen = ref(true)
+
+// SimpleChat (cloud, optional) — toolbar「AI生成」opens this panel
+const mapChatId = ref('default')
+const chatModelSelectOptions = computed(() => {
+    const opts = (modelOptions || []).map((m) => ({ label: m.label, value: m.value }))
+    const current = settings.value.chatModel
+    if (current && !opts.some((o) => o.value === current)) {
+        opts.unshift({ label: current, value: current })
+    }
+    return opts
+})
+const chatStorageKey = computed(() => `simplemind-chat-${mapChatId.value || 'default'}`)
+
+const selectedNodeForChat = computed(() => {
+    const nodes = activeNodes.value || []
+    if (nodes.length) return nodes[0]
+    return currentNode.value || null
+})
+
+const autoChatSystemPrompt = computed(() => {
+    const node = selectedNodeForChat.value
+    const tm = thinkingModels.find((m) => m.value === settings.value.thinkingModel) || thinkingModels[0]
+    return buildAutoChatSystemPrompt({
+        knowledgeBase: settings.value.systemPrompt,
+        language: settings.value.language,
+        thinkingModelLabel: tm?.label,
+        thinkingModelDescription: tm?.description,
+        selectedText: getNodeText(node),
+        selectedHint: getNodeSystemPrompt(node),
+    })
+})
+
+const simpleChatConfig = computed(() => {
+    const base = String(settings.value.chatApiBaseUrl || '').trim().replace(/\/+$/, '')
+    const key = String(settings.value.chatApiKey || '').trim()
+    const model = String(settings.value.chatModel || '').trim()
+    return {
+        apiBaseUrl: base,
+        apiKey: key,
+        model,
+        systemPrompt: autoChatSystemPrompt.value,
+        temperature: settings.value.temperature,
+    }
+})
+
+/** Map SimpleMind theme tokens → SimpleChat --sc-* (host inline style overrides :host defaults). */
+const simpleChatThemeStyle = computed(() => {
+    const target = themeList.find((item) => item.value === settings.value.theme)
+    const theme = target?.theme || {}
+    const dark = !!target?.dark
+    let primary = settings.value.themeRootFillColor || theme?.root?.fillColor || '#00c0b8'
+    if (primary === '#fff' || primary === '#ffffff' || primary === 'rgb(255, 255, 255)') {
+        primary = '#00c0b8'
+    }
+    const panelBg = dark ? '#0f172a' : '#ffffff'
+    const fg = dark ? '#f5f5f5' : '#1f2937'
+    const muted = dark ? 'rgba(255,255,255,0.65)' : '#737373'
+    const mutedBg = dark ? 'rgba(255,255,255,0.08)' : (settings.value.backgroundColor || theme.backgroundColor || '#f5f5f5')
+    const border = dark ? 'rgba(255,255,255,0.14)' : '#e5e5e5'
+    return {
+        '--sc-background': panelBg,
+        '--sc-foreground': fg,
+        '--sc-muted': muted,
+        '--sc-muted-bg': mutedBg,
+        '--sc-border': border,
+        '--sc-primary': primary,
+        '--sc-primary-fg': '#fafafa',
+        '--sc-assistant-bg': panelBg,
+        '--sc-assistant-border': border,
+        '--sc-ring': primary,
+    }
+})
+
+const simpleChatThemeCss = computed(() => {
+    const s = simpleChatThemeStyle.value
+    const lines = Object.entries(s).map(([k, v]) => `  ${k}: ${v};`)
+    return [':host {', ...lines, '}'].join('\n')
+})
+const mindChatTools = createMindChatTools({
+    getMindMap: () => mindMapRef.value,
+    getActiveNodes: () => {
+        const fromActive = activeNodes.value || []
+        if (fromActive.length) return fromActive
+        if (currentNode.value) return [currentNode.value]
+        return []
+    },
+})
+const refreshMapChatId = () => {
+    try {
+        const data = mindMapRef.value?.getData?.(false)
+        const uid = data?.data?.uid
+        mapChatId.value = uid ? String(uid) : 'default'
+    } catch {
+        mapChatId.value = 'default'
+    }
+}
+
 
 const builtinAiStatusLabel = computed(() => {
     switch (aiStatus.value) {
@@ -918,6 +1033,7 @@ const newMap = async (tpl) => {
         }
         mindMapRef.value.setData(data)
         mindMapRef.value.view.reset()
+        refreshMapChatId()
     } catch (e) {
         showError(t('templateImportFailed'), String(e?.message || e))
     }
@@ -965,7 +1081,13 @@ const buildCurrentAiPrompt = () => {
     }
 }
 
-const aiGenerate = async () => {
+/** Toolbar「AI生成」: open / focus SimpleChat sidebar (primary UX). */
+const aiGenerate = () => {
+    aiPanelOpen.value = true
+}
+
+/** Secondary: open BuiltinPromptAI prompt modal (kept for confirmAiGenerate flow). */
+const openBuiltinAiPrompt = async () => {
     if (isGenerating.value) return
     aiPanelOpen.value = true
 
@@ -1149,6 +1271,8 @@ onMounted(async () => {
     } catch {
         applyZoom(1)
     }
+
+    refreshMapChatId()
 
     mindMap.on('node_active', (node, activeNodeList) => {
         activeNodes.value = activeNodeList || (node ? [node] : [])

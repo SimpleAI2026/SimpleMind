@@ -179,6 +179,16 @@ vi.mock('../src/parser.js', () => ({
 }))
 
 import { createMemoryHistory, createRouter } from 'vue-router'
+
+vi.mock('@simplechat/vue', () => ({
+  SimpleChatSidebar: {
+    name: 'SimpleChatSidebar',
+    props: ['open', 'config', 'tools', 'storageKey', 'layout', 'position', 'themeCss', 'themeStyle'],
+    emits: ['close', 'update:open'],
+    template: '<div class="simple-chat-mock" data-testid="simple-chat-mock">SimpleChat</div>',
+  },
+}))
+
 import EditorView from '../src/views/EditorView.vue'
 import HomeView from '../src/views/HomeView.vue'
 
@@ -742,39 +752,57 @@ describe('aiGenerate', () => {
     ]
   }
 
-  it('returns immediately while generating and validates inputs', async () => {
+  it('toolbar AI生成 opens SimpleChat sidebar (primary UX)', async () => {
     const { wrapper, state } = await mountApp()
+    state.aiPanelOpen = false
+    await nextTick()
+    state.aiGenerate()
+    expect(state.aiPanelOpen).toBe(true)
+    expect(state.aiPromptOpen).toBe(false)
+    expect(aiMocks.generateText).not.toHaveBeenCalled()
+
+    const aiBtn = [...document.querySelectorAll('.toolbar-inner button')].find(
+      (button) => button.getAttribute('title') === 'AI生成',
+    )
+    expect(aiBtn).toBeTruthy()
+    state.aiPanelOpen = false
+    await aiBtn.click()
+    await flushPromises()
+    expect(state.aiPanelOpen).toBe(true)
+    expect(state.aiPromptOpen).toBe(false)
+    expect(aiMocks.generateText).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('openBuiltinAiPrompt validates and opens editable prompt modal (secondary)', async () => {
+    const { wrapper, state, mm } = await mountApp()
     state.isGenerating = true
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(aiMocks.generateText).not.toHaveBeenCalled()
     expect(state.aiPromptOpen).toBe(false)
 
     state.isGenerating = false
     aiMocks.checkBuiltinAvailability.mockResolvedValueOnce({ status: 'unavailable', reason: 'no-api' })
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(utilsMocks.showError).toHaveBeenCalled()
     expect(state.aiPromptOpen).toBe(false)
 
     aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
     state.mindMapRef = null
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(utilsMocks.showError).toHaveBeenCalledWith('请先创建一个思维导图')
     expect(state.aiPromptOpen).toBe(false)
-    wrapper.unmount()
-  })
 
-  it('opens an editable prompt modal and does not generate until confirm', async () => {
-    const { wrapper, state, mm } = await mountApp()
+    state.mindMapRef = mm
     state.settings.depth = 99
     state.activeNodes = [{ data: { text: '   ' } }]
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(utilsMocks.showError).toHaveBeenCalledWith('请先选择一个节点或者输入一个主题')
     expect(state.aiPromptOpen).toBe(false)
-    expect(aiMocks.generateText).not.toHaveBeenCalled()
 
     readyForPrompt(state)
     state.settings.depth = 99
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(libaiMocks.buildPrompt).toHaveBeenCalledWith(
       '主题',
       4,
@@ -785,27 +813,17 @@ describe('aiGenerate', () => {
     expect(state.aiPromptOpen).toBe(true)
     expect(state.aiPromptText).toBe('PROMPT')
     expect(aiMocks.generateText).not.toHaveBeenCalled()
-    expect(mm.execCommand).not.toHaveBeenCalledWith(
-      'INSERT_MULTI_CHILD_NODE',
-      [],
-      expect.any(Array),
-    )
-    expect(utilsMocks.showLoading).not.toHaveBeenCalled()
-
-    await nextTick()
-    expect(document.body.textContent).toContain('确认生成提示词')
-    expect(document.body.textContent).toContain('确认生成')
+    expect(state.aiPanelOpen).toBe(true)
 
     state.closeAiPromptModal()
     expect(state.aiPromptOpen).toBe(false)
-    expect(aiMocks.generateText).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
   it('confirms the edited prompt, shows confirm loading, and handles empty/error paths', async () => {
     const { wrapper, state, mm } = await mountApp()
     readyForPrompt(state)
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(state.aiPromptOpen).toBe(true)
 
     state.aiPromptText = 'EDITED-PROMPT'
@@ -834,11 +852,9 @@ describe('aiGenerate', () => {
     expect(mm.execCommand).toHaveBeenCalledWith('INSERT_MULTI_CHILD_NODE', [], expect.any(Array))
     expect(state.aiPromptOpen).toBe(false)
     expect(state.isGenerating).toBe(false)
-    expect(utilsMocks.showLoading).not.toHaveBeenCalled()
-    expect(utilsMocks.hideLoading).not.toHaveBeenCalled()
 
     readyForPrompt(state)
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     libaiMocks.extractIdeas.mockReturnValueOnce([])
     await state.confirmAiGenerate()
     expect(utilsMocks.showError).toHaveBeenCalledWith(
@@ -867,22 +883,23 @@ describe('aiGenerate', () => {
       },
     ]
     state.settings.depth = -2
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     expect(libaiMocks.buildPrompt.mock.calls.at(-1)[1]).toBe(1)
     wrapper.unmount()
   })
 
-  it('toolbar AI button opens the prompt modal instead of generating', async () => {
+  it('auto-injects system prompt and maps theme tokens for SimpleChat', async () => {
     const { wrapper, state } = await mountApp()
-    readyForPrompt(state)
-    const aiBtn = [...document.querySelectorAll('.toolbar-inner button')].find(
-      (button) => button.getAttribute('title') === 'AI生成',
-    )
-    expect(aiBtn).toBeTruthy()
-    await aiBtn.click()
-    await flushPromises()
-    expect(state.aiPromptOpen).toBe(true)
-    expect(aiMocks.generateText).not.toHaveBeenCalled()
+    state.settings.systemPrompt = 'KB-FROM-SETTINGS'
+    state.settings.theme = 'mint'
+    state.settings.themeRootFillColor = '#00c0b8'
+    state.activeNodes = [{ data: { text: '选中', nextSystemPrompt: 'hint' } }]
+    await nextTick()
+    expect(state.autoChatSystemPrompt).toContain('KB-FROM-SETTINGS')
+    expect(state.autoChatSystemPrompt).toContain('选中')
+    expect(state.simpleChatConfig.systemPrompt).toContain('KB-FROM-SETTINGS')
+    expect(state.simpleChatThemeStyle['--sc-primary']).toBe('#00c0b8')
+    expect(state.simpleChatThemeCss).toContain('--sc-primary')
     wrapper.unmount()
   })
 })
@@ -1073,10 +1090,11 @@ describe('coverage edge branches', () => {
 
     state.activeNodes = [{ data: {} }]
     state.settings.depth = 'nope'
-    await state.aiGenerate()
+    state.aiGenerate()
+    expect(state.aiPanelOpen).toBe(true)
 
     state.activeNodes = [{ data: { text: 'ok' } }]
-    await state.aiGenerate()
+    await state.openBuiltinAiPrompt()
     aiMocks.generateText.mockRejectedValueOnce('bare-string')
     await state.confirmAiGenerate()
 

@@ -25,3 +25,14 @@
 - 扩展内设置优先 `chrome.storage.local`；Web 仍可用 `sessionStorage`。
 - 扩展需 Chrome **138+**；工具栏图标打开 **主窗口标签页**（全页 Home/Editor），编辑器 **右侧为内置 AI 面板**；不以「整站塞进 Side Panel」为主入口。
 - Editor 工具栏顺序规则（ui-polish）仍然适用；**无**「设置思考模版」toolbar 按钮。
+
+## SimpleChat（右侧聊天面板）
+- Editor **右侧 AI 面板**嵌入 `@simplechat/vue`（`layout="panel"`），用于多轮聊天 + 工具调用。
+- **工具栏「AI生成」**打开 / 聚焦右侧 SimpleChat 面板（主路径）。BuiltinPromptAI 生成保留为次要能力，**不得**把「AI生成」改成云端回退。
+- SimpleChat 皮肤跟随 SimpleMind 当前主题（`--sc-*` / themeCss）；系统提示从知识库 `systemPrompt` + 选中节点 + 思考模型 **自动注入**。
+- SimpleChat 可在设置中配置可选云端 `chatApiBaseUrl` / `chatApiKey` / `chatModel`（OpenAI 兼容）；与内置 AI 通道分离。
+- 宿主只注册最小权限工具：`get_selected_node`（读）、`add_child_nodes`（在选中节点下写子节点）。
+- 聊天历史 `storageKey` 绑定当前导图 root `uid`（`simplemind-chat-<uid>`）。
+- 本地依赖：Yarn portal `portal:../SimpleChat/packages/*` + Vite alias 到 `packages/*/dist`；改 SimpleChat 后先 `yarn build`（SimpleChat）再刷新 SimpleMind。
+- 聊天右上角 ⚙ 可写 Base URL / Key / Model / 主题（localStorage）；宿主设置里也可填同一套字段（空则回落 storage/env）。
+

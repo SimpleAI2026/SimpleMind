@@ -1326,6 +1326,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@simplechat/core@portal:../SimpleChat/packages/core::locator=simple-mind%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@simplechat/core@portal:../SimpleChat/packages/core::locator=simple-mind%40workspace%3A."
+  languageName: node
+  linkType: soft
+
+"@simplechat/element@portal:../SimpleChat/packages/element::locator=simple-mind%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@simplechat/element@portal:../SimpleChat/packages/element::locator=simple-mind%40workspace%3A."
+  dependencies:
+    "@simplechat/core": "npm:0.1.0"
+    marked: "npm:^15.0.7"
+  languageName: node
+  linkType: soft
+
+"@simplechat/vue@portal:../SimpleChat/packages/vue::locator=simple-mind%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@simplechat/vue@portal:../SimpleChat/packages/vue::locator=simple-mind%40workspace%3A."
+  dependencies:
+    "@simplechat/core": "npm:0.1.0"
+    "@simplechat/element": "npm:0.1.0"
+  peerDependencies:
+    vue: ^3.4.0
+  languageName: node
+  linkType: soft
+
 "@svgdotjs/svg.js@npm:3.2.0":
   version: 3.2.0
   resolution: "@svgdotjs/svg.js@npm:3.2.0"
@@ -3556,6 +3582,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"marked@npm:^15.0.7":
+  version: 15.0.12
+  resolution: "marked@npm:15.0.12"
+  bin:
+    marked: bin/marked.js
+  checksum: 10c0/e09da211544b787ecfb25fed07af206060bf7cd6d9de6cb123f15c496a57f83b7aabea93340aaa94dae9c94e097ae129377cad6310abc16009590972e85f4212
+  languageName: node
+  linkType: hard
+
 "math-intrinsics@npm:^1.1.0":
   version: 1.1.0
   resolution: "math-intrinsics@npm:1.1.0"
@@ -4706,6 +4741,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "simple-mind@workspace:."
   dependencies:
+    "@simplechat/core": "portal:../SimpleChat/packages/core"
+    "@simplechat/element": "portal:../SimpleChat/packages/element"
+    "@simplechat/vue": "portal:../SimpleChat/packages/vue"
     "@vitejs/plugin-vue": "npm:^6.0.1"
     "@vitest/coverage-v8": "npm:3.2.4"
     "@vue/test-utils": "npm:2.4.6"
@@ -4719,7 +4757,7 @@ __metadata:
     vite-plugin-vue-devtools: "npm:^8.0.3"
     vitest: "npm:3.2.4"
     vue: "npm:^3.5.22"
-    vue-router: "npm:4"
+    vue-router: "npm:^4.6.4"
   languageName: unknown
   linkType: soft
 
@@ -5393,7 +5431,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vue-router@npm:4":
+"vue-router@npm:^4.6.4":
   version: 4.6.4
   resolution: "vue-router@npm:4.6.4"
   dependencies:

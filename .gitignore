@@ -37,3 +37,4 @@ coverage
 __screenshots__/
 .env.local
 **.zip
+.yarn

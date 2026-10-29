@@ -89,6 +89,34 @@ describe('saveSettings', () => {
     expect(saved.depth).toBe(4)
   })
 
+  it('persists SimpleChat key only when chatRememberKey is true', () => {
+    saveSettings({
+      chatApiBaseUrl: 'https://api.example/v1',
+      chatApiKey: 'sk-secret',
+      chatModel: 'm1',
+      chatRememberKey: true,
+      temperature: 0.5,
+      depth: 2,
+    })
+    let saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY))
+    expect(saved.chatApiKey).toBe('sk-secret')
+    expect(saved.chatRememberKey).toBe(true)
+    expect(saved.chatApiBaseUrl).toBe('https://api.example/v1')
+    expect(saved.chatModel).toBe('m1')
+
+    saveSettings({
+      chatApiBaseUrl: 'https://api.example/v1',
+      chatApiKey: 'sk-secret',
+      chatModel: 'm1',
+      chatRememberKey: false,
+      temperature: 0.5,
+      depth: 2,
+    })
+    saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY))
+    expect(saved.chatApiKey).toBeUndefined()
+    expect(saved.chatRememberKey).toBe(false)
+  })
+
   it('uses 0.7 / 3 when numbers are missing', () => {
     saveSettings({})
     const saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY))

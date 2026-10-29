@@ -101,15 +101,25 @@ const toNumberOr = (val, fallback) => {
     return Number.isFinite(n) ? n : fallback
 }
 
-/** Strip legacy cloud API fields from persisted settings. */
+/** Strip legacy Builtin cloud API fields; optionally drop chat API key. */
 function scrubSettings(saved = {}) {
     const {
         api: _api,
         secret: _secret,
         model: _model,
+        chatApiKey,
+        chatRememberKey,
         ...rest
     } = saved || {}
-    return rest
+    const out = { ...rest }
+    // SimpleChat optional cloud config — only persist key when user opted in
+    if (chatRememberKey && chatApiKey) {
+        out.chatRememberKey = true
+        out.chatApiKey = chatApiKey
+    } else {
+        out.chatRememberKey = false
+    }
+    return out
 }
 
 export function loadSettings(defaults = {}) {

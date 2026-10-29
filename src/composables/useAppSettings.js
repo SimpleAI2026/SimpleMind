@@ -20,6 +20,10 @@ const defaults = {
   themeRootFillColor: '#00c0b8',
   theme: 'mint',
   promptLayers: 1,
+  chatApiBaseUrl: 'https://api.siliconflow.cn/v1',
+  chatApiKey: '',
+  chatModel: 'Qwen/Qwen2.5-7B-Instruct',
+  chatRememberKey: false,
 }
 
 /** Shared settings for Home / Editor (sessionStorage / chrome.storage backed). */
