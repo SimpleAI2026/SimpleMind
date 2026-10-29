@@ -86,5 +86,7 @@
   "builtinAIChecking": "正在检测内置 AI…",
   "builtinAIRecheck": "重新检测",
   "builtinAIDownload": "下载 / 启用模型",
-  "openFullPage": "全页打开"
+  "openFullPage": "全页打开",
+  "aiPanel": "AI 面板",
+  "aiPanelCollapse": "收起"
 }

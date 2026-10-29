@@ -82,9 +82,6 @@
           >
             {{ t('builtinAIDownload') }}
           </a-button>
-          <a-button v-if="isExtension" size="small" @click="openFullPage">
-            {{ t('openFullPage') }}
-          </a-button>
         </div>
       </footer>
     </div>
@@ -168,14 +165,6 @@ const ensureAiReady = async () => {
   return false
 }
 
-const openFullPage = () => {
-  try {
-    const url = chrome?.runtime?.getURL?.('index.html') || window.location.href
-    window.open(url, '_blank')
-  } catch {
-    window.open(window.location.href, '_blank')
-  }
-}
 
 onMounted(() => {
   refreshAiAvailability()

@@ -68,21 +68,16 @@
 
 ## 4. ASCII 线框
 
-### 4.1 扩展 Side Panel（推荐主入口）
+### 4.1 扩展主入口：Chrome 主标签页 + 右侧 AI 面板
 
 ```
-┌─ Chrome ──────────────────────────────┐
-│  … │ 🧩 SimpleMind │ …                │
-└───────────────────────────────────────┘
-         │
-         ▼
-┌─ Side Panel ~420px ───────────────────┐
-│  SimpleMind     [语言▾] [主题▾]       │  ← 可复用 Home header 紧凑版
-│  ┌────┐ ┌────┐ ┌────┐                │
-│  │ +  │ │模板│ │ …  │                │
-│  └────┘ └────┘ └────┘                │
-│  底栏：内置 AI ● 就绪 / ○ 下载中      │
-└───────────────────────────────────────┘
+┌─ Chrome 主窗口标签页 ──────────────────────────────────┐
+│  SimpleMind Home / Editor（全页）     │ 右侧 AI 面板   │
+│  脑图画布 / 模板网格                  │ 可用性/下载   │
+│                                       │ AI 生成       │
+└───────────────────────────────────────┴───────────────┘
+点击工具栏图标 → chrome.tabs.create(index.html)（或聚焦已有扩展页）
+不再以「整站 Side Panel」为主入口。
 ```
 
 ### 4.2 Editor 内 AI（无密钥）
@@ -118,9 +113,9 @@
 
 | 项 | 建议 |
 | --- | --- |
-| 入口 | **Side Panel** 为主（脑图编辑空间够用）；可选 `chrome_url_overrides` / 独立 `index.html` 全页 |
+| 入口 | **主窗口标签页**打开 `index.html`；编辑器内 **右侧 AI 面板**；不以整站 Side Panel 为主入口 |
 | 构建 | Vite 多入口或 `@crxjs/vite-plugin` / 自研 `manifest.json` + `vite build` 输出到 `dist-extension/` |
-| 权限 | 尽量少：`sidePanel`；内置 AI **无需**额外 AI permission（Prompt API 对扩展已 stable）；**不要**为内置 AI 申请 host 权限 |
+| 权限 | 尽量少：`storage`；内置 AI **无需**额外 AI permission（Prompt API 对扩展已 stable）；**不要**为内置 AI 申请 host 权限 |
 | 存储 | `chrome.storage.local` 对齐现有 settings（语言/主题/脑图草稿），替代或并联 `sessionStorage` |
 
 ### 5.2 Built-in AI 适配
@@ -146,7 +141,7 @@
 | --- | --- |
 | 单元 | mock `LanguageModel`：availability / create / prompt；断言不调用 `fetch(.../chat/completions)` |
 | 适配器 | `BuiltinPromptAI` 把返回值交给 `extractIdeas` 的契约测试 |
-| 手工 | Chrome 138+ 真机：首次模型下载、Side Panel 打开 Home→模板→AI生成 |
+| 手工 | Chrome 138+ 真机：点图标开主标签、首次模型下载、Home→模板→右侧 AI 面板生成 |
 | 覆盖率 | 维持 ≥95% 门槛；扩展壳可薄测 |
 
 ### 5.5 文档 / 规则
@@ -162,7 +157,7 @@
 | 优先级 | 内容 |
 | --- | --- |
 | P0 | 抽象 `generateText`；实现 `BuiltinPromptAI`；Editor `aiGenerate` 走适配器；可用性检测 UI |
-| P0 | 扩展 MV3 壳 + Side Panel 加载现有 App；构建脚本 `dist-extension` |
+| P0 | 扩展 MV3 壳 + 标签页加载现有 App + 右侧 AI 面板；构建脚本 `dist-extension` |
 | P0 | **删除** API/Secret/Model 设置与 `requestCompletions` 云端请求；i18n 改为内置 AI 文案 |
 | P1 | Prompt 瘦身 / 分层生成以适配 Nano；错误与下载进度打磨 |
 | P1 | `chrome.storage` 持久化；README / AGENTS |
@@ -178,16 +173,16 @@
 | 风险 | 缓解 |
 | --- | --- |
 | Nano 输出 JSON 不稳 / 截断 | 降规模、jsonrepair、分层生成、明确失败重试 |
-| 模型体积大、首次下载慢 | Side Panel 底栏进度；首次打开预热 create |
+| 模型体积大、首次下载慢 | 右侧 AI 面板 / Home 底栏进度；首次打开预热 create |
 | 仅高版本 Chrome | 启动检测 + 商店写明 138+ |
-| Side Panel 宽度限制脑图 | 提供「在新标签打开全页扩展页」出口 |
+| 脑图空间 | 主内容在全页标签；右侧仅 AI 面板，可收起 |
 | 现有密钥用户 | 设置项与请求代码移除；旧 localStorage 中的 api/secret 可忽略或一次性清理 |
 
 ---
 
 ## 8. 确认结论（进行中）
 
-1. 扩展主入口：建议 **Side Panel + 「全页打开」**（你未改口前按此执行）
+1. 扩展主入口：**Chrome 主标签页**打开应用；编辑器 **右侧 AI 面板**（已按反馈调整，不再以整站 Side Panel 为主入口）
 2. **云端 Key / OpenAI 兼容请求：不保留，全部去掉** — **已确认**
    - 删除（或彻底停用）`requestCompletions` / `resolveEndpoint` / `normalizeSecret` 及 Settings 中 API / Secret / Model 表单项
    - Web 与扩展 **统一只走** Built-in AI（`LanguageModel` / Prompt API）

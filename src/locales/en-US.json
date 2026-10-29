@@ -86,5 +86,7 @@
   "builtinAIChecking": "Checking Built-in AI…",
   "builtinAIRecheck": "Recheck",
   "builtinAIDownload": "Download / enable model",
-  "openFullPage": "Open full page"
+  "openFullPage": "Open full page",
+  "aiPanel": "AI panel",
+  "aiPanelCollapse": "Collapse"
 }

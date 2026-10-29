@@ -64,8 +64,68 @@
         </div>
     </div>
     
-    <div id="mindMapContainer"></div>
+    <div id="mindMapContainer" :class="{ 'with-ai-panel': aiPanelOpen }"></div>
 
+    <button
+        v-if="!aiPanelOpen"
+        type="button"
+        class="ai-panel-edge-toggle"
+        :title="t('aiPanel')"
+        @click="aiPanelOpen = true"
+    >
+        <span class="ai-panel-edge-dot" :class="'status-' + aiStatus"></span>
+        {{ t('aiPanel') }}
+    </button>
+
+    <aside v-if="aiPanelOpen" class="ai-side-panel" aria-label="AI">
+        <div class="ai-side-panel-header">
+            <div class="ai-side-panel-title">
+                <span class="builtin-ai-dot" :class="'status-' + aiStatus"></span>
+                <span>{{ t('aiPanel') }}</span>
+            </div>
+            <a-button size="small" type="text" @click="aiPanelOpen = false">{{ t('aiPanelCollapse') }}</a-button>
+        </div>
+
+        <div class="ai-side-panel-body">
+            <div class="builtin-ai-status">
+                <span>{{ builtinAiStatusLabel }}</span>
+            </div>
+            <a-progress
+                v-if="aiStatus === 'downloading'"
+                :percent="Math.round((aiProgress || 0) * 100)"
+                size="small"
+                :show-info="true"
+            />
+            <p class="builtin-ai-hint">{{ t('builtinAIHint') }}</p>
+            <div class="builtin-ai-actions">
+                <a-button size="small" @click="refreshAiAvailability" :loading="aiChecking">
+                    {{ t('builtinAIRecheck') }}
+                </a-button>
+                <a-button
+                    v-if="aiStatus === 'downloadable' || aiStatus === 'downloading'"
+                    size="small"
+                    type="primary"
+                    @click="ensureAiReady"
+                    :loading="aiStatus === 'downloading'"
+                >
+                    {{ t('builtinAIDownload') }}
+                </a-button>
+            </div>
+
+            <div class="ai-side-panel-generate">
+                <a-button
+                    type="primary"
+                    block
+                    :icon="h(BulbOutlined)"
+                    @click="aiGenerate"
+                    :disabled="isGenerating"
+                    :loading="isGenerating"
+                >
+                    {{ isGenerating ? t('generating') : t('aiGenerate') }}
+                </a-button>
+            </div>
+        </div>
+    </aside>
 
     <div
         v-if="show"
@@ -137,13 +197,6 @@
                                     :loading="aiStatus === 'downloading'"
                                 >
                                     {{ t('builtinAIDownload') }}
-                                </a-button>
-                                <a-button
-                                    v-if="isExtension"
-                                    size="small"
-                                    @click="openFullPage"
-                                >
-                                    {{ t('openFullPage') }}
                                 </a-button>
                             </div>
                         </div>
@@ -457,9 +510,7 @@ const settings = ref({
 const aiStatus = ref('unknown')
 const aiProgress = ref(0)
 const aiChecking = ref(false)
-const isExtension = ref(
-    typeof chrome !== 'undefined' && !!chrome?.runtime?.id
-)
+const aiPanelOpen = ref(true)
 
 const builtinAiStatusLabel = computed(() => {
     switch (aiStatus.value) {
@@ -516,15 +567,6 @@ const ensureAiReady = async () => {
         }
     }
     return false
-}
-
-const openFullPage = () => {
-    try {
-        const url = chrome?.runtime?.getURL?.('index.html') || window.location.href
-        window.open(url, '_blank')
-    } catch {
-        window.open(window.location.href, '_blank')
-    }
 }
 
 // -----------------------------------------------------------------------------
@@ -925,6 +967,7 @@ const buildCurrentAiPrompt = () => {
 
 const aiGenerate = async () => {
     if (isGenerating.value) return
+    aiPanelOpen.value = true
 
     if (!mindMapRef.value) {
         showError(t('createMapFirst'))

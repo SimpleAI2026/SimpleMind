@@ -889,7 +889,7 @@ describe('aiGenerate', () => {
 
 
 describe('built-in AI helpers in editor', () => {
-  it('ensureAiReady downloads model and openFullPage works', async () => {
+  it('ensureAiReady downloads model and AI side panel toggles', async () => {
     const { wrapper, state } = await mountApp()
     aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'downloadable' })
     aiMocks.builtinPromptAI.ensureSession.mockImplementationOnce(async ({ onDownloadProgress }) => {
@@ -908,11 +908,13 @@ describe('built-in AI helpers in editor', () => {
     await state.refreshAiAvailability()
     expect(state.aiStatus).toBe('unavailable')
 
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-    state.isExtension = true
-    state.openFullPage()
-    expect(openSpy).toHaveBeenCalled()
-    openSpy.mockRestore()
+    expect(state.aiPanelOpen).toBe(true)
+    state.aiPanelOpen = false
+    await nextTick()
+    expect(wrapper.find('.ai-panel-edge-toggle').exists()).toBe(true)
+    state.aiPanelOpen = true
+    await nextTick()
+    expect(wrapper.find('.ai-side-panel').exists()).toBe(true)
 
     // confirmAiGenerate retries when extractIdeas throws once
     state.activeNodes = [{ data: { text: '主题' } }]

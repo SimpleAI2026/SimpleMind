@@ -99,15 +99,16 @@ yarn preview
 
 1. `yarn && yarn build:extension`
 2. Chrome → `chrome://extensions` → Developer mode → Load unpacked → `dist-extension/`
-3. Requires Chrome 138+. No API keys.
+3. Click the toolbar icon to open SimpleMind in a **normal Chrome tab** (full page). The editor’s **right side is the Built-in AI panel**.
+4. Requires Chrome 138+. No API keys.
 
 ## Usage
 
-1. Open the app (or extension Side Panel) on Home; check Built-in AI status in the footer.
+1. Open the app (extension: toolbar icon → main tab) on Home; check Built-in AI status in the footer.
 2. Click **Create** for a blank map, or open a template card to load an example into the editor.
-3. In Settings, confirm Built-in AI is ready (download / recheck if needed).
+3. In the editor **right AI panel** (or Settings), confirm Built-in AI is ready (download / recheck if needed).
 4. Select the root node or any node and set its text to the topic; optionally add material in **Knowledge Base**.
-5. Click **AI Generate**, confirm the prompt, and child nodes are inserted. To switch templates, use **Back to Home**.
+5. Click **AI Generate** (toolbar or right AI panel), confirm the prompt, and child nodes are inserted. To switch templates, use **Back to Home**.
 
 ## Implementation notes
 

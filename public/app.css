@@ -602,3 +602,103 @@ body {
   align-items: center;
   gap: 8px;
 }
+
+
+/* Editor right AI panel (in-page; main app is full tab) */
+#mindMapContainer.with-ai-panel {
+  max-width: calc(100% - 320px);
+}
+
+.ai-panel-edge-toggle {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 110;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 12px 8px;
+  border: 1px solid var(--chrome-border);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: var(--chrome-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--chrome-shadow);
+  color: var(--chrome-text);
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-panel-edge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9ca3af;
+  flex-shrink: 0;
+}
+.ai-panel-edge-dot.status-available { background: #22c55e; }
+.ai-panel-edge-dot.status-downloadable { background: #f59e0b; }
+.ai-panel-edge-dot.status-downloading { background: #3b82f6; }
+.ai-panel-edge-dot.status-unavailable { background: #ef4444; }
+
+.ai-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(320px, 92vw);
+  height: 100vh;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  background: var(--chrome-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-left: 1px solid var(--chrome-border);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
+  color: var(--chrome-text);
+}
+
+.ai-side-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--chrome-divider);
+}
+
+.ai-side-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ai-side-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.ai-side-panel-generate {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--chrome-divider);
+}
+
+@media (max-width: 720px) {
+  #mindMapContainer.with-ai-panel {
+    max-width: 100%;
+  }
+  .ai-side-panel {
+    width: min(100vw, 320px);
+  }
+}

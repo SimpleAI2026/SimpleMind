@@ -18,10 +18,10 @@
 
 
 ## Chrome 扩展与内置 AI
-- 主交付形态可为 **Chrome 扩展（MV3 Side Panel）**；构建产物目录 `dist-extension/`（`yarn build:extension`）。
+- 主交付形态可为 **Chrome 扩展（MV3）**；构建产物目录 `dist-extension/`（`yarn build:extension`）。
 - AI **只走** Chrome Built-in AI（Prompt API / `LanguageModel` / 端侧 Gemini Nano）。**禁止**要求用户配置 API Key / Endpoint / 云端模型名，**禁止**云端 Chat Completions 回退。
 - 传输层抽象为 `generateText(prompt) → string`，实现仅为 `BuiltinPromptAI`；继续复用 `buildPrompt` / `extractIdeas`。
 - Nano 不足时：缩小规模（降 count / 1 层）或明确失败提示，不得接第三方云端 Key。
 - 扩展内设置优先 `chrome.storage.local`；Web 仍可用 `sessionStorage`。
-- 扩展需 Chrome **138+**；Side Panel 为主入口，并提供「全页打开」。
+- 扩展需 Chrome **138+**；工具栏图标打开 **主窗口标签页**（全页 Home/Editor），编辑器 **右侧为内置 AI 面板**；不以「整站塞进 Side Panel」为主入口。
 - Editor 工具栏顺序规则（ui-polish）仍然适用；**无**「设置思考模版」toolbar 按钮。

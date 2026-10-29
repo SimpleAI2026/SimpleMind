@@ -178,10 +178,9 @@ describe('HomeView built-in AI footer', () => {
     wrapper.unmount()
   })
 
-  it('handles ensureSession failure and openFullPage in extension', async () => {
+  it('handles ensureSession failure in extension context', async () => {
     aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'downloadable' })
     aiMocks.ensureSession.mockRejectedValueOnce(new Error('dl fail'))
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     vi.stubGlobal('chrome', {
       runtime: { id: 'ext', getURL: (p) => `chrome-extension://ext/${p}` },
     })
@@ -191,14 +190,11 @@ describe('HomeView built-in AI footer', () => {
     expect(state.isExtension).toBe(true)
     await state.ensureAiReady()
     expect(state.aiStatus).toBe('unavailable')
-    state.openFullPage()
-    expect(openSpy).toHaveBeenCalled()
-    openSpy.mockRestore()
     vi.unstubAllGlobals()
     wrapper.unmount()
   })
 
-  it('covers available/downloading labels and openFullPage fallback', async () => {
+  it('covers available/downloading labels', async () => {
     aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
     const { wrapper } = await mountHome()
     await flushPromises()
@@ -210,35 +206,12 @@ describe('HomeView built-in AI footer', () => {
     expect(wrapper.text()).toMatch(/%/)
     state.aiStatus = 'unknown'
     expect(state.builtinAiStatusLabel).toBeTruthy()
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-    state.openFullPage()
-    expect(openSpy).toHaveBeenCalled()
-    openSpy.mockRestore()
     wrapper.unmount()
   })
 })
 
 
-describe('HomeView openFullPage fallbacks', () => {
-  it('openFullPage when getURL throws', async () => {
-    vi.stubGlobal('chrome', {
-      runtime: {
-        id: 'ext',
-        getURL: () => {
-          throw new Error('bad url')
-        },
-      },
-    })
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-    const { wrapper } = await mountHome()
-    const state = wrapper.vm.$.setupState
-    state.openFullPage()
-    expect(openSpy).toHaveBeenCalled()
-    openSpy.mockRestore()
-    vi.unstubAllGlobals()
-    wrapper.unmount()
-  })
-
+describe('HomeView AI readiness', () => {
   it('ensureAiReady returns true when already available', async () => {
     aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'available' })
     const { wrapper } = await mountHome()
