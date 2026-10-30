@@ -102,12 +102,11 @@ export const SimpleChatSidebar = defineComponent({
 
     onMounted(() => {
       applyAll(true)
-      elRef.value?.addEventListener('sc-close', onClose)
+      // sc-close is handled via vnode onScClose only (avoid double emit → open flicker)
       elRef.value?.addEventListener('sc-resize', onResize)
     })
 
     onBeforeUnmount(() => {
-      elRef.value?.removeEventListener('sc-close', onClose)
       elRef.value?.removeEventListener('sc-resize', onResize)
     })
 

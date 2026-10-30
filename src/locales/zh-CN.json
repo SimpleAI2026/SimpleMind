@@ -99,5 +99,5 @@
   "simpleChatWarn": "云端 API Key 仅建议个人/内网使用；生产请用同源代理。Chat ⚙ 设置会写入本机 localStorage（有 XSS 风险）。",
   "simpleChatAutoPromptHint": "系统提示会自动注入：知识库（设置→系统提示）+ 当前选中节点 + 思考模型 + 工具说明。",
   "simpleChatCloudHint": "云端 Base URL / API Key / Model 请在 Chat ⚙ 中配置。",
-  "builtinAIInChatHint": "内置 AI 状态与下载已移至 Chat ⚙。"
+  "builtinAIInChatHint": "内置 AI（Chrome Nano）请在 Chat ⚙ 中选择「Chrome 内置 AI」provider 查看状态与下载。"
 }

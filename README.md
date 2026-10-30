@@ -56,7 +56,7 @@
 - **产物**：兄弟仓库 [SimpleChat](https://github.com/SimpleAI2026/SimpleChat) 执行 `yarn build:min`，生成并拷贝到本仓库 `src/vendor/simplechat/simplechat.min.js`（样式在 Shadow DOM 内，无需另拷 CSS）。
 - **本地封装**：`src/components/SimpleChatSidebar.js` 包一层 `<simple-chat layout="panel">`；**无** Yarn portal / npm `@simplechat/*`。
 - **可拖宽度**：面板左缘 resize（约 320–720px），与 `--sc-width`、`localStorage` `simplechat:sidebar-width`、宿主 `--ai-panel-width` 同步。
-- **⚙ 设置**：Base URL / Key / Model / 主题 / 工具样式；Built-in AI 状态入口也可注入到 Chat ⚙。API Key 若以 `my-` 开头，SimpleChat 会去掉前缀后做 Base64 解码再作为 Bearer。
+- **⚙ 设置**：Base URL / Key / Model / Provider（含 Chrome 内置 AI）/ 主题 / 工具样式。Built-in AI 由 SimpleChat 自带面板提供（Mind 不再 `setHostSettingsSlot` 注入）。右侧 AI 面板默认收起，开合写入 `localStorage`（`simplemind-ai-panel-open`；无记录则默认关）。API Key 若以 `my-` 开头，SimpleChat 会去掉前缀后做 Base64 解码再作为 Bearer。
 - **历史**：`storageKey` 绑定当前导图 root `uid`（`simplemind-chat-<uid>`）。
 - **更新 vendor**：`cd ../SimpleChat && yarn build:min`（默认自动拷贝；或 `yarn build:min --no-copy` 后手动 `cp`）。
 
