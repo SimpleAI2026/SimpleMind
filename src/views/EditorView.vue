@@ -465,7 +465,7 @@ const settings = ref({
     promptLayers: 1,
     chatApiBaseUrl: 'https://api.siliconflow.cn/v1',
     chatApiKey: '',
-    chatModel: 'Qwen/Qwen2.5-7B-Instruct',
+    chatModel: 'zai-org/GLM-5.3-Flash',
     chatRememberKey: false,
 })
 
