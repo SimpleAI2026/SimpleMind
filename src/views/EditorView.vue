@@ -475,7 +475,7 @@ const aiProgress = ref(0)
 const aiChecking = ref(false)
 const AI_PANEL_OPEN_KEY = 'simplemind-ai-panel-open'
 
-/** Persist AI side panel open/closed. Missing preference → open. */
+/** Persist AI side panel open/closed. Missing/invalid preference → closed. */
 const panelStorage = () => {
     try {
         return typeof window !== 'undefined' ? window.localStorage : null
@@ -487,14 +487,14 @@ const panelStorage = () => {
 const loadAiPanelOpen = () => {
     try {
         const store = panelStorage()
-        if (!store) return true
+        if (!store) return false
         const raw = store.getItem(AI_PANEL_OPEN_KEY)
-        if (raw == null || raw === '') return true
+        if (raw == null || raw === '') return false
         if (raw === '0' || raw === 'false') return false
         if (raw === '1' || raw === 'true') return true
-        return true
+        return false
     } catch {
-        return true
+        return false
     }
 }
 

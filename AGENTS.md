@@ -37,5 +37,5 @@
 - 宿主只注册最小权限工具：`get_selected_node`（读）、`add_child_nodes`（在选中节点下写子节点）。
 - 聊天历史 `storageKey` 绑定当前导图 root `uid`（`simplemind-chat-<uid>`）。
 - **无** Yarn portal / npm `@simplechat/*`。改 SimpleChat 后在兄弟仓库执行 `cd ../SimpleChat && yarn build:min`（默认自动拷贝到本仓库 `src/vendor/simplechat/`）。
-- 聊天右上角 ⚙：Base URL / Key / Model / Provider（含 Chrome 内置 AI）/ 主题 / 工具样式。右侧 AI 面板默认展开，开合状态写入 `localStorage`（`simplemind-ai-panel-open`；无记录则默认开）。
+- 聊天右上角 ⚙：Base URL / Key / Model / Provider（含 Chrome 内置 AI）/ 主题 / 工具样式。右侧 AI 面板默认收起，开合状态写入 `localStorage`（`simplemind-ai-panel-open`；无记录/非法值则默认关）。
 

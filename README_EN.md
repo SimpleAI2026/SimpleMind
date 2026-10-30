@@ -56,7 +56,7 @@ Renders the map as layered, document-style cards; can also be exported as a stan
 - **Artifact**: In sibling [SimpleChat](https://github.com/SimpleAI2026/SimpleChat), run `yarn build:min` to build and copy into `src/vendor/simplechat/simplechat.min.js` (styles inside Shadow DOM; no extra CSS).
 - **Local wrapper**: `src/components/SimpleChatSidebar.js` wraps `<simple-chat layout="panel">`. **No** Yarn portal / npm `@simplechat/*`.
 - **Resizable**: Left-edge resize (~320–720px), synced with `--sc-width`, `localStorage` `simplechat:sidebar-width`, and host `--ai-panel-width`.
-- **⚙ settings**: Base URL / Key / Model / Provider (incl. Chrome built-in AI) / theme / tool styles. Built-in AI comes from SimpleChat’s own panel (Mind no longer injects via `setHostSettingsSlot`). The right AI panel is expanded by default; open/closed is stored in `localStorage` (`simplemind-ai-panel-open`). If the API key starts with `my-`, SimpleChat strips the prefix and Base64-decodes before Bearer auth.
+- **⚙ settings**: Base URL / Key / Model / Provider (incl. Chrome built-in AI) / theme / tool styles. Built-in AI comes from SimpleChat’s own panel (Mind no longer injects via `setHostSettingsSlot`). The right AI panel is collapsed by default; open/closed is stored in `localStorage` (`simplemind-ai-panel-open`; missing/invalid → closed). If the API key starts with `my-`, SimpleChat strips the prefix and Base64-decodes before Bearer auth.
 - **History**: `storageKey` is bound to the map root `uid` (`simplemind-chat-<uid>`).
 - **Refresh vendor**: `cd ../SimpleChat && yarn build:min` (auto-copy by default; or `yarn build:min --no-copy` then `cp` manually).
 
