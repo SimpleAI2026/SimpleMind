@@ -33,9 +33,9 @@
 - **工具栏「AI生成」**打开 / 聚焦右侧 SimpleChat 面板（主路径）。BuiltinPromptAI 生成保留为次要能力，**不得**把「AI生成」改成云端回退。
 - SimpleChat 皮肤跟随 SimpleMind 当前主题（`--sc-*` / themeCss）；系统提示从知识库 `systemPrompt` + 选中节点 + 思考模型 **自动注入**。
 - 云端 `apiBaseUrl` / `apiKey` / `model`（OpenAI 兼容）由 **Chat 右上角 ⚙** 配置并写入 localStorage；宿主设置不再编辑这些字段（可一次性迁移旧宿主值）。与内置 AI 通道分离。
-- **Built-in AI** 状态 / 重新检测 / 下载入口在 Chat ⚙（宿主通过 `setHostSettingsSlot` 注入），不再放在 Editor 设置弹窗。
+- **Built-in AI（Chrome Prompt API / Gemini Nano）** 由 SimpleChat ⚙ 自带的 Chrome 内置 AI provider 面板提供；Mind **不再**通过 `setHostSettingsSlot` 注入宿主 Nano 卡片。工具栏「AI生成」/ BuiltinPromptAI 仍可用。
 - 宿主只注册最小权限工具：`get_selected_node`（读）、`add_child_nodes`（在选中节点下写子节点）。
 - 聊天历史 `storageKey` 绑定当前导图 root `uid`（`simplemind-chat-<uid>`）。
 - **无** Yarn portal / npm `@simplechat/*`。改 SimpleChat 后在兄弟仓库执行 `cd ../SimpleChat && yarn build:min`（默认自动拷贝到本仓库 `src/vendor/simplechat/`）。
-- 聊天右上角 ⚙：Base URL / Key / Model / 主题 / 工具样式 + 宿主注入的 Built-in AI 区块。
+- 聊天右上角 ⚙：Base URL / Key / Model / Provider（含 Chrome 内置 AI）/ 主题 / 工具样式。右侧 AI 面板默认展开，开合状态写入 `localStorage`（`simplemind-ai-panel-open`；无记录则默认开）。
 

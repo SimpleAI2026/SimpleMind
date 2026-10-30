@@ -87,7 +87,7 @@
             <SimpleChatSidebar
                 ref="chatSidebarRef"
                 :key="chatStorageKey"
-                :open="true"
+                :open="aiPanelOpen"
                 layout="panel"
                 position="right"
                 :config="simpleChatConfig"
@@ -95,8 +95,8 @@
                 :storage-key="chatStorageKey"
                 :theme-style="simpleChatThemeStyle"
                 :theme-css="simpleChatThemeCss"
-                @close="aiPanelOpen = false"
-                @update:open="(v) => { if (!v) aiPanelOpen = false }"
+                @close="onAiPanelClose"
+                @update:open="onAiPanelOpenUpdate"
                 @resize="onChatPanelResize"
             />
         </div>
@@ -473,7 +473,40 @@ const settings = ref({
 const aiStatus = ref('unknown')
 const aiProgress = ref(0)
 const aiChecking = ref(false)
-const aiPanelOpen = ref(true)
+const AI_PANEL_OPEN_KEY = 'simplemind-ai-panel-open'
+
+/** Persist AI side panel open/closed. Missing preference → open. */
+const panelStorage = () => {
+    try {
+        return typeof window !== 'undefined' ? window.localStorage : null
+    } catch {
+        return null
+    }
+}
+
+const loadAiPanelOpen = () => {
+    try {
+        const store = panelStorage()
+        if (!store) return true
+        const raw = store.getItem(AI_PANEL_OPEN_KEY)
+        if (raw == null || raw === '') return true
+        if (raw === '0' || raw === 'false') return false
+        if (raw === '1' || raw === 'true') return true
+        return true
+    } catch {
+        return true
+    }
+}
+
+const persistAiPanelOpen = (open) => {
+    try {
+        panelStorage()?.setItem(AI_PANEL_OPEN_KEY, open ? '1' : '0')
+    } catch {}
+}
+
+const aiPanelOpen = ref(loadAiPanelOpen())
+/** Ignore spurious sc-close / open=false during first paint / remount. */
+const aiPanelCloseArmed = ref(false)
 const aiPanelWidth = ref(typeof loadSidebarWidth === 'function' ? loadSidebarWidth() : SC_WIDTH_DEFAULT)
 const aiPanelWidthPx = computed(() => `${aiPanelWidth.value}px`)
 
@@ -489,6 +522,23 @@ const applyAiPanelWidth = (width, { resizeMap = true } = {}) => {
             window.dispatchEvent(new Event('resize'))
         } catch {}
     }
+}
+
+const armAiPanelClose = async () => {
+    aiPanelCloseArmed.value = false
+    await nextTick()
+    // Second tick: custom element connectedCallback + Vue listeners settled
+    await nextTick()
+    aiPanelCloseArmed.value = true
+}
+
+const onAiPanelClose = () => {
+    if (!aiPanelCloseArmed.value) return
+    aiPanelOpen.value = false
+}
+
+const onAiPanelOpenUpdate = (v) => {
+    if (!v) onAiPanelClose()
 }
 
 const onChatPanelResize = (payload) => {
@@ -582,21 +632,6 @@ const refreshMapChatId = () => {
 }
 
 
-const builtinAiStatusLabel = computed(() => {
-    switch (aiStatus.value) {
-        case 'available':
-            return t('builtinAIAvailable')
-        case 'downloadable':
-            return t('builtinAIDownloadable')
-        case 'downloading':
-            return t('builtinAIDownloading')
-        case 'unavailable':
-            return t('builtinAIUnavailable')
-        default:
-            return t('builtinAIChecking')
-    }
-})
-
 const refreshAiAvailability = async () => {
     aiChecking.value = true
     try {
@@ -639,9 +674,7 @@ const ensureAiReady = async () => {
     return false
 }
 
-// —— Built-in AI panel injected into SimpleChat ⚙ (host settings slot) ——
-let builtinAiHostEl = null
-
+// —— One-time migrate legacy host chat API fields into SimpleChat localStorage ——
 const migrateHostChatSettingsOnce = (storageKey) => {
     try {
         const lsKey = `${storageKey || 'simplechat'}:settings`
@@ -664,72 +697,8 @@ const migrateHostChatSettingsOnce = (storageKey) => {
     }
 }
 
-const syncBuiltinAiHostPanel = () => {
-    if (!builtinAiHostEl) return
-    const status = aiStatus.value || 'unknown'
-    const dot = builtinAiHostEl.querySelector('[data-ai-dot]')
-    const label = builtinAiHostEl.querySelector('[data-ai-label]')
-    const hint = builtinAiHostEl.querySelector('[data-ai-hint]')
-    const progress = builtinAiHostEl.querySelector('[data-ai-progress]')
-    const recheck = builtinAiHostEl.querySelector('[data-ai-recheck]')
-    const download = builtinAiHostEl.querySelector('[data-ai-download]')
-    const title = builtinAiHostEl.querySelector('[data-ai-title]')
-    if (title) title.textContent = t('builtinAI')
-    if (dot) {
-        dot.className = `sc-builtin-ai-dot status-${status}`
-    }
-    if (label) label.textContent = builtinAiStatusLabel.value
-    if (hint) hint.textContent = t('builtinAIHint')
-    if (progress) {
-        if (status === 'downloading') {
-            progress.hidden = false
-            progress.textContent = `${Math.round((aiProgress.value || 0) * 100)}%`
-        } else {
-            progress.hidden = true
-        }
-    }
-    if (recheck) {
-        recheck.textContent = t('builtinAIRecheck')
-        recheck.disabled = !!aiChecking.value
-    }
-    if (download) {
-        const show = status === 'downloadable' || status === 'downloading'
-        download.hidden = !show
-        download.textContent = t('builtinAIDownload')
-        download.disabled = status === 'downloading'
-    }
-}
-
-const ensureBuiltinAiHostPanel = () => {
-    if (!builtinAiHostEl) {
-        const root = document.createElement('div')
-        root.className = 'sc-builtin-ai'
-        root.innerHTML = `
-            <p class="sc-builtin-ai-title" data-ai-title></p>
-            <div class="sc-builtin-ai-status">
-                <span class="sc-builtin-ai-dot" data-ai-dot aria-hidden="true"></span>
-                <span data-ai-label></span>
-            </div>
-            <div class="sc-builtin-ai-progress" data-ai-progress hidden></div>
-            <p class="sc-builtin-ai-hint" data-ai-hint></p>
-            <div class="sc-builtin-ai-actions">
-                <button type="button" class="sc-btn-ghost" data-ai-recheck></button>
-                <button type="button" class="sc-btn-primary" data-ai-download hidden></button>
-            </div>
-        `
-        root.querySelector('[data-ai-recheck]')?.addEventListener('click', () => {
-            void refreshAiAvailability()
-        })
-        root.querySelector('[data-ai-download]')?.addEventListener('click', () => {
-            void ensureAiReady()
-        })
-        builtinAiHostEl = root
-    }
-    syncBuiltinAiHostPanel()
-    return builtinAiHostEl
-}
-
-const mountBuiltinAiIntoChat = async () => {
+/** Clear Mind host settings slot (no longer inject Nano card; SimpleChat owns Chrome AI UI). */
+const clearChatHostSettingsSlot = async () => {
     await nextTick()
     let sidebar = chatSidebarRef.value
     if (!sidebar) {
@@ -740,21 +709,17 @@ const mountBuiltinAiIntoChat = async () => {
     migrateHostChatSettingsOnce(chatStorageKey.value)
     const el = typeof sidebar.getElement === 'function' ? sidebar.getElement() : null
     if (!el || typeof el.setHostSettingsSlot !== 'function') return
-    el.setHostSettingsSlot(ensureBuiltinAiHostPanel())
+    el.setHostSettingsSlot(null)
 }
 
 watch(
     [aiPanelOpen, chatStorageKey],
     async ([open]) => {
         if (!open) return
-        await mountBuiltinAiIntoChat()
+        await clearChatHostSettingsSlot()
+        await armAiPanelClose()
     },
     { flush: 'post' },
-)
-
-watch(
-    [aiStatus, aiProgress, aiChecking, () => settings.value.language],
-    () => syncBuiltinAiHostPanel(),
 )
 
 
@@ -1271,17 +1236,21 @@ const confirmAiGenerate = async () => {
 
 
 watch(aiPanelOpen, (open) => {
+    persistAiPanelOpen(open)
     if (open) {
         applyAiPanelWidth(aiPanelWidth.value || loadSidebarWidth())
+    } else {
+        aiPanelCloseArmed.value = false
     }
-})
+}, { immediate: true })
 
 onMounted(async () => {
     loadSettings()
     applyAiPanelWidth(loadSidebarWidth(), { resizeMap: false })
     refreshAiAvailability()
     if (aiPanelOpen.value) {
-        void mountBuiltinAiIntoChat()
+        void clearChatHostSettingsSlot()
+        void armAiPanelClose()
     }
     const blankData = {
         data: { text: '主题' },

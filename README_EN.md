@@ -56,7 +56,7 @@ Renders the map as layered, document-style cards; can also be exported as a stan
 - **Artifact**: In sibling [SimpleChat](https://github.com/SimpleAI2026/SimpleChat), run `yarn build:min` to build and copy into `src/vendor/simplechat/simplechat.min.js` (styles inside Shadow DOM; no extra CSS).
 - **Local wrapper**: `src/components/SimpleChatSidebar.js` wraps `<simple-chat layout="panel">`. **No** Yarn portal / npm `@simplechat/*`.
 - **Resizable**: Left-edge resize (~320–720px), synced with `--sc-width`, `localStorage` `simplechat:sidebar-width`, and host `--ai-panel-width`.
-- **⚙ settings**: Base URL / Key / Model / theme / tool styles; Built-in AI status can be injected into Chat ⚙. If the API key starts with `my-`, SimpleChat strips the prefix and Base64-decodes before Bearer auth.
+- **⚙ settings**: Base URL / Key / Model / Provider (incl. Chrome built-in AI) / theme / tool styles. Built-in AI comes from SimpleChat’s own panel (Mind no longer injects via `setHostSettingsSlot`). The right AI panel is expanded by default; open/closed is stored in `localStorage` (`simplemind-ai-panel-open`). If the API key starts with `my-`, SimpleChat strips the prefix and Base64-decodes before Bearer auth.
 - **History**: `storageKey` is bound to the map root `uid` (`simplemind-chat-<uid>`).
 - **Refresh vendor**: `cd ../SimpleChat && yarn build:min` (auto-copy by default; or `yarn build:min --no-copy` then `cp` manually).
 
@@ -109,14 +109,14 @@ yarn preview
 
 1. `yarn && yarn build:extension`
 2. Chrome → `chrome://extensions` → Developer mode → Load unpacked → `dist-extension/`
-3. Click the toolbar icon to open SimpleMind in a **normal Chrome tab** (full page). The editor’s **right side is the SimpleChat panel** (cloud chat ⚙; Built-in AI status can appear in ⚙ too).
+3. Click the toolbar icon to open SimpleMind in a **normal Chrome tab** (full page). The editor’s **right side is the SimpleChat panel** (cloud chat ⚙; pick Chrome built-in AI provider there for Nano status).
 4. Requires Chrome 138+. No API keys.
 
 ## Usage
 
 1. Open the app (extension: toolbar icon → main tab) on Home; switch language / theme in the header.
 2. Click **Create** for a blank map, or open a template card to load an example into the editor.
-3. In the right **SimpleChat** panel, open **⚙**: set cloud Base URL / API Key / Model (optional); Built-in AI status may also appear there (download / recheck if needed).
+3. In the right **SimpleChat** panel, open **⚙**: set cloud Base URL / API Key / Model, or choose the Chrome built-in AI provider for on-device Nano status / download / recheck.
 4. Select the root node or any node and set its text to the topic; optionally add material in **Knowledge Base**.
 5. **Cloud chat**: talk in SimpleChat; the model can read/write the selection via tools. **On-device generate**: click toolbar **AI Generate**, confirm the prompt, and children are inserted. To switch templates, use **Back to Home**.
 

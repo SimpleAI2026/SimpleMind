@@ -99,5 +99,5 @@
   "simpleChatWarn": "Cloud API keys are for personal/intranet use only; use a same-origin proxy in production. Chat ⚙ settings persist to localStorage (XSS risk).",
   "simpleChatAutoPromptHint": "System prompt is auto-injected from the knowledge base (Settings → System prompt), selected node, thinking model, and tool instructions.",
   "simpleChatCloudHint": "Configure cloud Base URL / API Key / Model in Chat ⚙.",
-  "builtinAIInChatHint": "Built-in AI status and download live in Chat ⚙."
+  "builtinAIInChatHint": "Built-in AI (Chrome Nano): pick the Chrome built-in AI provider in Chat ⚙ for status and download."
 }

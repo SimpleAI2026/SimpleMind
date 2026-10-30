@@ -791,6 +791,49 @@ describe('aiGenerate', () => {
     wrapper.unmount()
   })
 
+  it('aiPanelOpen defaults open and persists to localStorage', async () => {
+    window.localStorage.removeItem('simplemind-ai-panel-open')
+    const { wrapper, state } = await mountApp()
+    expect(state.aiPanelOpen).toBe(true)
+    expect(window.localStorage.getItem('simplemind-ai-panel-open')).toBe('1')
+
+    state.aiPanelOpen = false
+    await nextTick()
+    expect(window.localStorage.getItem('simplemind-ai-panel-open')).toBe('0')
+    expect(wrapper.find('.ai-panel-edge-toggle').exists()).toBe(true)
+    expect(wrapper.find('.ai-side-panel').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('aiPanelOpen restores closed preference from localStorage', async () => {
+    window.localStorage.setItem('simplemind-ai-panel-open', '0')
+    const { wrapper, state } = await mountApp()
+    expect(state.aiPanelOpen).toBe(false)
+    expect(wrapper.find('.ai-panel-edge-toggle').exists()).toBe(true)
+    expect(wrapper.find('.ai-side-panel').exists()).toBe(false)
+
+    state.aiPanelOpen = true
+    await nextTick()
+    expect(window.localStorage.getItem('simplemind-ai-panel-open')).toBe('1')
+    expect(wrapper.find('.ai-side-panel').exists()).toBe(true)
+    wrapper.unmount()
+    window.localStorage.removeItem('simplemind-ai-panel-open')
+  })
+
+  it('ignores sc-close before close arming (no mount flicker collapse)', async () => {
+    window.localStorage.removeItem('simplemind-ai-panel-open')
+    const { wrapper, state } = await mountApp()
+    expect(state.aiPanelOpen).toBe(true)
+    // Simulate premature close before armAiPanelClose finishes
+    state.aiPanelCloseArmed = false
+    state.onAiPanelClose()
+    expect(state.aiPanelOpen).toBe(true)
+    state.aiPanelCloseArmed = true
+    state.onAiPanelClose()
+    expect(state.aiPanelOpen).toBe(false)
+    wrapper.unmount()
+  })
+
   it('openBuiltinAiPrompt validates and opens editable prompt modal (secondary)', async () => {
     const { wrapper, state, mm } = await mountApp()
     state.isGenerating = true
@@ -924,6 +967,7 @@ describe('aiGenerate', () => {
 
 describe('built-in AI helpers in editor', () => {
   it('ensureAiReady downloads model and AI side panel toggles', async () => {
+    window.localStorage.removeItem('simplemind-ai-panel-open')
     const { wrapper, state } = await mountApp()
     aiMocks.checkBuiltinAvailability.mockResolvedValue({ status: 'downloadable' })
     aiMocks.builtinPromptAI.ensureSession.mockImplementationOnce(async ({ onDownloadProgress }) => {
